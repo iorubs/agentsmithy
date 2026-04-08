@@ -6,6 +6,7 @@ WORKDIR /docs
 COPY package*.json ./
 
 # Install dependencies if package.json exists
+VOLUME /docs/node_modules
 RUN if [ -f package.json ]; then npm ci; else npm install; fi
 
 # Copy all documentation files

@@ -4,8 +4,8 @@ slug: /
 
 # Overview
 
-![agentsmithy forge](../static/img/body.png)
-> **MCPSmithy** is a single Go binary that reads a declarative YAML
+![agentsmithy forge](../static/img/forge.png)
+> **AgentSmithy** is a single Go binary that reads a declarative YAML
 config file (`.agentsmithy.yaml`) and serves a fully functional AI agents.
 
 ## Why does it exist?
