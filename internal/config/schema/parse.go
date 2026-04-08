@@ -10,13 +10,6 @@ import (
 	"strings"
 )
 
-// ParamTypeSource is the raw Go source of paramtype.go, embedded at compile time.
-// Callers include this alongside version-specific type sources when calling
-// ParseTypeDocs so that ParamType docs are available.
-//
-//go:embed paramtype.go
-var ParamTypeSource string
-
 // ParseTypeDocs parses Go source files and extracts doc comments for types,
 // struct fields, and typed string const values into a DocProvider.
 // Accepts multiple source strings; results are merged with later sources

@@ -15,8 +15,8 @@ import (
 var typesSource string
 
 // TypesSources returns all Go source files needed for doc generation.
-// Includes both the v1 types and the shared schema types (e.g. ParamType).
-var TypesSources = []string{typesSource, schema.ParamTypeSource}
+// Includes both the v1 types and the shared schema types.
+var TypesSources = []string{typesSource}
 
 // Schema satisfies the config.VersionSchema interface for v1.
 // Since v1 is the latest version, Parse returns directly without conversion.
