@@ -4,7 +4,7 @@ slug: /
 
 # Overview
 
-![agentsmithy forge](../static/img/forge.png)
+![agentsmithy forge](../static/img/body.png)
 > **AgentSmithy** is a single Go binary that reads a declarative YAML
 config file (`.agentsmithy.yaml`) and serves a fully functional AI agents.
 
