@@ -1,0 +1,5 @@
+version: "1"
+
+project:
+  name: "AgentSmithy"
+  description: "Config-driven AI Agent in Go. Build and serves AI Agents using .mcpsmithy.yaml."
