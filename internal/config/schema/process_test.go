@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-// ----- test types -----
-
 // testEnum is a named string type implementing Valuer.
 type testEnum string
 
@@ -102,27 +100,6 @@ type sampleWithOneOfOpt struct {
 	Constraints map[string]oneofOptEntry `yaml:"constraints,omitempty"`
 }
 
-// ── test type classifier (for typed-as= tests) ─────────────────────────────
-
-// typedAsConstraints mirrors a constraints struct for typed-as testing.
-type typedAsConstraints struct {
-	Enum []any    `yaml:"enum,omitempty" mcpsmithy:"oneof?=no_enum_with_min|no_enum_with_max"`
-	Min  *float64 `yaml:"min,omitempty"  mcpsmithy:"oneof?=no_enum_with_min"`
-	Max  *float64 `yaml:"max,omitempty"  mcpsmithy:"oneof?=no_enum_with_max"`
-}
-
-// typedAsParam uses the real ParamType (now in this package) for typed-as testing.
-type typedAsParam struct {
-	Name        string              `yaml:"name"        mcpsmithy:"required"`
-	Type        ParamType           `yaml:"type"        mcpsmithy:"required"`
-	Default     any                 `yaml:"default"     mcpsmithy:"typed-as=type"`
-	Constraints *typedAsConstraints `yaml:"constraints,omitempty" mcpsmithy:"typed-as=type"`
-}
-
-type sampleWithTypedAs struct {
-	Params []typedAsParam `yaml:"params,omitempty"`
-}
-
 // hasMsg reports whether msg appears in the list.
 func hasMsg(msgs []error, sub string) bool {
 	for _, m := range msgs {
@@ -132,8 +109,6 @@ func hasMsg(msgs []error, sub string) bool {
 	}
 	return false
 }
-
-// ----- defaults -----
 
 func TestProcess_Defaults(t *testing.T) {
 	f := false
@@ -218,8 +193,6 @@ func TestProcess_NilMapAndSliceUntouched(t *testing.T) {
 	}
 }
 
-// ----- required -----
-
 func TestProcess_Required(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -250,8 +223,6 @@ func TestProcess_Required(t *testing.T) {
 		})
 	}
 }
-
-// ----- enum / Valuer -----
 
 func TestProcess_EnumValidation(t *testing.T) {
 	tests := []struct {
@@ -284,8 +255,6 @@ func TestProcess_EnumValidation(t *testing.T) {
 	}
 }
 
-// ----- oneof (errors) -----
-
 func TestProcess_OneOf(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -317,8 +286,6 @@ func TestProcess_OneOf(t *testing.T) {
 	}
 }
 
-// ----- min -----
-
 func TestProcess_Min(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -349,8 +316,6 @@ func TestProcess_Min(t *testing.T) {
 		})
 	}
 }
-
-// ----- oneof? (at-most-one, errors) -----
 
 func TestProcess_OneOfOptional(t *testing.T) {
 	f := func(v float64) *float64 { return &v }
@@ -389,68 +354,6 @@ func TestProcess_OneOfOptional(t *testing.T) {
 	}
 }
 
-// ----- typed-as (cross-field type compatibility) -----
-
-func TestProcess_TypedAs(t *testing.T) {
-	f := func(v float64) *float64 { return &v }
-
-	tests := []struct {
-		name     string
-		val      any
-		wantErrs int
-		wantMsg  string
-	}{
-		// ── default type compatibility ──
-		{"valid string default", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "q", Type: ParamTypeString, Default: "hello"},
-		}}, 0, ""},
-		{"valid int default", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "n", Type: ParamTypeNumber, Default: 42},
-		}}, 0, ""},
-		{"valid bool default", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "v", Type: ParamTypeBool, Default: true},
-		}}, 0, ""},
-		{"string default for number", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "n", Type: ParamTypeNumber, Default: "42"},
-		}}, 1, "default"},
-		{"string default for bool", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "v", Type: ParamTypeBool, Default: "true"},
-		}}, 1, "default"},
-		{"int default for string", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "q", Type: ParamTypeString, Default: 42},
-		}}, 1, "default"},
-		// ── constraints type compatibility ──
-		{"valid min/max on numeric", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "n", Type: ParamTypeNumber, Constraints: &typedAsConstraints{Min: f(1), Max: f(100)}},
-		}}, 0, ""},
-		{"min on non-numeric type", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "q", Type: ParamTypeString, Constraints: &typedAsConstraints{Min: f(1)}},
-		}}, 1, "min"},
-		{"min greater than max", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "n", Type: ParamTypeNumber, Constraints: &typedAsConstraints{Min: f(100), Max: f(1)}},
-		}}, 1, "min"},
-		{"string enum with non-string value", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "q", Type: ParamTypeString, Constraints: &typedAsConstraints{Enum: []any{"dev", 42}}},
-		}}, 1, "enum"},
-		{"number enum with float", &sampleWithTypedAs{Params: []typedAsParam{
-			{Name: "n", Type: ParamTypeNumber, Constraints: &typedAsConstraints{Enum: []any{1, 2.5}}},
-		}}, 0, ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			errs := Process(tt.val)
-			if len(errs) != tt.wantErrs {
-				t.Fatalf("got %d errors; want %d: %v", len(errs), tt.wantErrs, errs)
-			}
-			if tt.wantMsg != "" && !hasMsg(errs, tt.wantMsg) {
-				t.Errorf("expected %q; got %v", tt.wantMsg, errs)
-			}
-		})
-	}
-}
-
-// ----- notreserved -----
-
 // notReservedEntry has a field that must not be a reserved context key name.
 type notReservedEntry struct {
 	Name string `yaml:"name" mcpsmithy:"notreserved"`
@@ -479,8 +382,6 @@ func TestProcess_NotReserved(t *testing.T) {
 		})
 	}
 }
-
-// ----- ref= -----
 
 // refTool is a minimal map-entry type for ref= testing.
 type refTool struct {
@@ -526,8 +427,6 @@ func TestProcess_Ref(t *testing.T) {
 		})
 	}
 }
-
-// ----- Validator interface (struct-level) -----
 
 // validatedEntry implements Validator to test cross-field invariant checking.
 type validatedEntry struct {

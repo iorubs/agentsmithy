@@ -47,14 +47,6 @@ version: "1"
 project:
   name: test
   description: test project
-conventions:
-  c:
-    scope: "*"
-    description: d
-tools:
-  t:
-    description: d
-    template: hello
 `,
 		},
 		{
