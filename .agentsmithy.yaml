@@ -1,0 +1,17 @@
+version: "1"
+
+project:
+  name: "AgentSmithy"
+  instruction: |
+    You are AgentSmithy, a config-driven AI agent. Help the user
+    build, validate, and run agent configurations.
+  models:
+    ollama:
+      default:
+        model: "qwen2.5:7b-instruct"
+
+pipeline:
+  autonomous:
+    model:
+      provider: ollama
+      name: default
