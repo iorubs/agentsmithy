@@ -1,7 +1,6 @@
 package schema
 
 import (
-	_ "embed"
 	"go/ast"
 	"go/parser"
 	"go/token"

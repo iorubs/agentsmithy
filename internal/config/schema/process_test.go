@@ -19,42 +19,42 @@ func (testEnum) Values() []string {
 }
 
 type inner struct {
-	Port int `yaml:"port" mcpsmithy:"default=8080"`
+	Port int `yaml:"port" agentsmithy:"default=8080"`
 }
 
 type mapEntry struct {
-	Size int    `yaml:"size" mcpsmithy:"default=2048"`
-	Mode string `yaml:"mode" mcpsmithy:"default=archive"`
+	Size int    `yaml:"size" agentsmithy:"default=2048"`
+	Mode string `yaml:"mode" agentsmithy:"default=archive"`
 }
 
 type sliceEntry struct {
-	Enabled *bool `yaml:"enabled" mcpsmithy:"default=true"`
+	Enabled *bool `yaml:"enabled" agentsmithy:"default=true"`
 }
 
 type mapRequired struct {
-	Name string `yaml:"name" mcpsmithy:"required"`
+	Name string `yaml:"name" agentsmithy:"required"`
 	Tag  string `yaml:"tag"`
 }
 
 type enumHolder struct {
-	Policy testEnum `yaml:"policy" mcpsmithy:"default=alpha"`
+	Policy testEnum `yaml:"policy" agentsmithy:"default=alpha"`
 	Label  string   `yaml:"label"`
 }
 
 // sample covers defaults, required, and nested struct/map/slice traversal.
 type sample struct {
-	Name    string              `yaml:"name"    mcpsmithy:"required"`
-	Mode    string              `yaml:"mode"    mcpsmithy:"default=archive"`
-	Count   int                 `yaml:"count"   mcpsmithy:"default=3"`
-	Verbose *bool               `yaml:"verbose" mcpsmithy:"default=true"`
+	Name    string              `yaml:"name"    agentsmithy:"required"`
+	Mode    string              `yaml:"mode"    agentsmithy:"default=archive"`
+	Count   int                 `yaml:"count"   agentsmithy:"default=3"`
+	Verbose *bool               `yaml:"verbose" agentsmithy:"default=true"`
 	Nested  inner               `yaml:"nested"`
 	Entries map[string]mapEntry `yaml:"entries,omitempty"`
 	Items   []sliceEntry        `yaml:"items,omitempty"`
 }
 
 type sampleWithEnums struct {
-	Name    string                `yaml:"name"    mcpsmithy:"required"`
-	Policy  testEnum              `yaml:"policy"  mcpsmithy:"default=alpha"`
+	Name    string                `yaml:"name"    agentsmithy:"required"`
+	Policy  testEnum              `yaml:"policy"  agentsmithy:"default=alpha"`
 	Sources map[string]enumHolder `yaml:"sources,omitempty"`
 	List    []enumHolder          `yaml:"list,omitempty"`
 }
@@ -66,9 +66,9 @@ type sampleWithRequiredMap struct {
 
 // oneofEntry has two mutually-exclusive fields in the same group.
 type oneofEntry struct {
-	Desc     string `yaml:"desc"     mcpsmithy:"required"`
-	Function string `yaml:"function" mcpsmithy:"oneof=mode"`
-	Template string `yaml:"template" mcpsmithy:"oneof=mode"`
+	Desc    string `yaml:"desc"     agentsmithy:"required"`
+	OptionA string `yaml:"optionA" agentsmithy:"oneof=mode"`
+	OptionB string `yaml:"optionB" agentsmithy:"oneof=mode"`
 }
 
 type sampleWithOneOf struct {
@@ -78,7 +78,7 @@ type sampleWithOneOf struct {
 
 // minEntry has an int field with a minimum bound and a default.
 type minEntry struct {
-	MaxPages int    `yaml:"maxPages" mcpsmithy:"default=20,min=0"`
+	MaxPages int    `yaml:"maxPages" agentsmithy:"default=20,min=0"`
 	Label    string `yaml:"label"`
 }
 
@@ -91,9 +91,9 @@ type sampleWithMin struct {
 // enum conflicts with min (no_enum_with_min) and max (no_enum_with_max).
 // min and max share no group — they coexist freely.
 type oneofOptEntry struct {
-	Enum []any    `yaml:"enum,omitempty"  mcpsmithy:"oneof?=no_enum_with_min|no_enum_with_max"`
-	Min  *float64 `yaml:"min,omitempty"   mcpsmithy:"oneof?=no_enum_with_min"`
-	Max  *float64 `yaml:"max,omitempty"   mcpsmithy:"oneof?=no_enum_with_max"`
+	Enum []any    `yaml:"enum,omitempty"  agentsmithy:"oneof?=no_enum_with_min|no_enum_with_max"`
+	Min  *float64 `yaml:"min,omitempty"   agentsmithy:"oneof?=no_enum_with_min"`
+	Max  *float64 `yaml:"max,omitempty"   agentsmithy:"oneof?=no_enum_with_max"`
 }
 
 type sampleWithOneOfOpt struct {
@@ -262,15 +262,15 @@ func TestProcess_OneOf(t *testing.T) {
 		wantErrs int
 		wantMsg  string
 	}{
-		{"exactly one", &oneofEntry{Desc: "ok", Function: "search_for"}, 0, ""},
-		{"neither", &oneofEntry{Desc: "ok"}, 1, "function/template: must set one of [function, template]"},
-		{"both", &oneofEntry{Desc: "ok", Function: "f", Template: "t"}, 1, "function/template: function and template are mutually exclusive"},
+		{"exactly one", &oneofEntry{Desc: "ok", OptionA: "val"}, 0, ""},
+		{"neither", &oneofEntry{Desc: "ok"}, 1, "optionA/optionB: must set one of [optionA, optionB]"},
+		{"both", &oneofEntry{Desc: "ok", OptionA: "a", OptionB: "b"}, 1, "optionA/optionB: optionA and optionB are mutually exclusive"},
 		{"invalid in map", &sampleWithOneOf{Tools: map[string]oneofEntry{
-			"good": {Desc: "ok", Function: "f"}, "bad": {Desc: "oops"},
-		}}, 1, "tools[bad]: must set one of [function, template]"},
+			"good": {Desc: "ok", OptionA: "a"}, "bad": {Desc: "oops"},
+		}}, 1, "tools[bad]: must set one of [optionA, optionB]"},
 		{"invalid in slice", &sampleWithOneOf{Items: []oneofEntry{
-			{Desc: "ok", Template: "t"}, {Desc: "oops"},
-		}}, 1, "items[1]: must set one of [function, template]"},
+			{Desc: "ok", OptionB: "b"}, {Desc: "oops"},
+		}}, 1, "items[1]: must set one of [optionA, optionB]"},
 		{"nil", (*sampleWithOneOf)(nil), 0, ""},
 	}
 	for _, tt := range tests {
@@ -356,7 +356,7 @@ func TestProcess_OneOfOptional(t *testing.T) {
 
 // notReservedEntry has a field that must not be a reserved context key name.
 type notReservedEntry struct {
-	Name string `yaml:"name" mcpsmithy:"notreserved"`
+	Name string `yaml:"name" agentsmithy:"notreserved"`
 }
 
 func TestProcess_NotReserved(t *testing.T) {
@@ -367,7 +367,7 @@ func TestProcess_NotReserved(t *testing.T) {
 		wantMsg  string
 	}{
 		{"non-reserved name", &notReservedEntry{Name: "myparam"}, 0, ""},
-		{"reserved name", &notReservedEntry{Name: "mcpsmithy"}, 1, "reserved"},
+		{"reserved name", &notReservedEntry{Name: "agentsmithy"}, 1, "reserved"},
 		{"nil", (*notReservedEntry)(nil), 0, ""},
 	}
 	for _, tt := range tests {
@@ -391,7 +391,7 @@ type refTool struct {
 // refHolder has a string field that must reference a key in its own tools map.
 type refHolder struct {
 	Tools   map[string]refTool `yaml:"tools"`
-	ToolRef string             `yaml:"tool" mcpsmithy:"ref=tools"`
+	ToolRef string             `yaml:"tool" agentsmithy:"ref=tools"`
 }
 
 func TestProcess_Ref(t *testing.T) {
@@ -430,7 +430,7 @@ func TestProcess_Ref(t *testing.T) {
 
 // validatedEntry implements Validator to test cross-field invariant checking.
 type validatedEntry struct {
-	Name string `yaml:"name" mcpsmithy:"required"`
+	Name string `yaml:"name" agentsmithy:"required"`
 }
 
 func (v validatedEntry) Validate() error {
@@ -456,7 +456,7 @@ func (v validatedLeafField) Validate() error {
 }
 
 type sampleWithLeafValidator struct {
-	Token validatedLeafField `yaml:"token" mcpsmithy:"required"`
+	Token validatedLeafField `yaml:"token" agentsmithy:"required"`
 }
 
 func TestProcess_ValidatorInterface(t *testing.T) {

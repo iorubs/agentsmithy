@@ -8,19 +8,19 @@ import (
 // descTestConfig is a minimal struct mirroring the shape of a real config,
 // used to verify Describe walks the type tree correctly.
 type descTestConfig struct {
-	Version string         `yaml:"version" mcpsmithy:"required"`
-	Project descTestProj   `yaml:"project" mcpsmithy:"required"`
+	Version string         `yaml:"version" agentsmithy:"required"`
+	Project descTestProj   `yaml:"project" agentsmithy:"required"`
 	Items   []descTestItem `yaml:"items"`
 }
 
 type descTestProj struct {
-	Name string       `yaml:"name" mcpsmithy:"required"`
-	Mode descTestEnum `yaml:"mode" mcpsmithy:"default=fast"`
+	Name string       `yaml:"name" agentsmithy:"required"`
+	Mode descTestEnum `yaml:"mode" agentsmithy:"default=fast"`
 }
 
 type descTestItem struct {
-	Label string `yaml:"label" mcpsmithy:"required,notreserved"`
-	Count int    `yaml:"count" mcpsmithy:"default=1,min=0"`
+	Label string `yaml:"label" agentsmithy:"required,notreserved"`
+	Count int    `yaml:"count" agentsmithy:"default=1,min=0"`
 }
 
 type descTestEnum string
@@ -44,14 +44,14 @@ type descTokenHolder struct {
 
 // descOneOfHolder tests FieldDoc.OneOfGroups.
 type descOneOfHolder struct {
-	Function string `yaml:"function" mcpsmithy:"oneof=action"`
-	Template string `yaml:"template" mcpsmithy:"oneof=action"`
+	OptionA string `yaml:"optionA" agentsmithy:"oneof=action"`
+	OptionB string `yaml:"optionB" agentsmithy:"oneof=action"`
 }
 
 // descRefHolder tests FieldDoc.Refs.
 type descRefHolder struct {
 	Items   map[string]descTestItem `yaml:"items"`
-	ItemRef string                  `yaml:"itemRef" mcpsmithy:"ref=items"`
+	ItemRef string                  `yaml:"itemRef" agentsmithy:"ref=items"`
 }
 
 // descTestDocs is a hand-crafted DocProvider for the test types above.
@@ -214,8 +214,8 @@ func TestDescribe_OneOfGroups(t *testing.T) {
 		t.Fatalf("fields = %d; want 2", len(s.Fields))
 	}
 	fn := s.Fields[0]
-	if fn.YAMLName != "function" {
-		t.Fatalf("field[0] = %q; want function", fn.YAMLName)
+	if fn.YAMLName != "optionA" {
+		t.Fatalf("field[0] = %q; want optionA", fn.YAMLName)
 	}
 	if len(fn.OneOfGroups) != 1 {
 		t.Fatalf("OneOfGroups = %d; want 1", len(fn.OneOfGroups))
@@ -227,8 +227,8 @@ func TestDescribe_OneOfGroups(t *testing.T) {
 	if g.Optional {
 		t.Error("optional = true; want false")
 	}
-	if len(g.Peers) != 1 || g.Peers[0] != "template" {
-		t.Errorf("peers = %v; want [template]", g.Peers)
+	if len(g.Peers) != 1 || g.Peers[0] != "optionB" {
+		t.Errorf("peers = %v; want [optionB]", g.Peers)
 	}
 	if fn.Required != "oneof" {
 		t.Errorf("required = %q; want oneof", fn.Required)

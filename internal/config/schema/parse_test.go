@@ -129,16 +129,4 @@ type Compact struct{}
 			t.Errorf("compact comment = %q; want %q", got, "CompactDoc no leading space.")
 		}
 	})
-
-	t.Run("embedded ParamType source", func(t *testing.T) {
-		// ParamTypeSource is embedded at compile time and must parse without panic.
-		docs := ParseTypeDocs()
-		if docs.Types["ParamType"] == "" {
-			t.Error("ParamType doc should be present in the embedded source")
-		}
-		// The embedded source should also include enum value docs.
-		if docs.Values["ParamType"] == nil {
-			t.Error("ParamType enum values should be present in the embedded source")
-		}
-	})
 }
