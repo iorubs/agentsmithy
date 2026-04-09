@@ -25,8 +25,8 @@ func TestParseTag(t *testing.T) {
 		{"oneof multi", "oneof=g1|g2", false, "", []oneOfEntry{{Group: "g1", Optional: false}, {Group: "g2", Optional: false}}, nil, false, nil, ""},
 		{"default+min", "default=20,min=0", false, "20", nil, new(0), false, nil, ""},
 		{"notreserved", "required,notreserved", true, "", nil, nil, true, nil, ""},
-		{"ref single", "required,ref=conventions", true, "", nil, nil, false, []string{"conventions"}, ""},
-		{"ref multi", "required,ref=sources.local|sources.scrape", true, "", nil, nil, false, []string{"sources.local", "sources.scrape"}, ""},
+		{"ref single", "required,ref=entries", true, "", nil, nil, false, []string{"entries"}, ""},
+		{"ref multi", "required,ref=groups.local|groups.scrape", true, "", nil, nil, false, []string{"groups.local", "groups.scrape"}, ""},
 		{"typed-as", "typed-as=type", false, "", nil, nil, false, nil, "type"},
 	}
 	for _, tt := range tests {

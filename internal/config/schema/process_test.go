@@ -48,7 +48,7 @@ type sample struct {
 	Count   int                 `yaml:"count"   agentsmithy:"default=3"`
 	Verbose *bool               `yaml:"verbose" agentsmithy:"default=true"`
 	Nested  inner               `yaml:"nested"`
-	Entries map[string]mapEntry `yaml:"entries,omitempty"`
+	Entries map[string]mapEntry `yaml:"refEntry,omitempty"`
 	Items   []sliceEntry        `yaml:"items,omitempty"`
 }
 
@@ -60,7 +60,7 @@ type sampleWithEnums struct {
 }
 
 type sampleWithRequiredMap struct {
-	Entries map[string]mapRequired `yaml:"entries,omitempty"`
+	Entries map[string]mapRequired `yaml:"refEntry,omitempty"`
 	Items   []mapRequired          `yaml:"items,omitempty"`
 }
 
@@ -72,8 +72,8 @@ type oneofEntry struct {
 }
 
 type sampleWithOneOf struct {
-	Tools map[string]oneofEntry `yaml:"tools,omitempty"`
-	Items []oneofEntry          `yaml:"items,omitempty"`
+	Entries map[string]oneofEntry `yaml:"tools,omitempty"`
+	Items   []oneofEntry          `yaml:"items,omitempty"`
 }
 
 // minEntry has an int field with a minimum bound and a default.
@@ -203,7 +203,7 @@ func TestProcess_Required(t *testing.T) {
 		{"present top-level", &sample{Name: "ok"}, ""},
 		{"missing in map entry", &sampleWithRequiredMap{
 			Entries: map[string]mapRequired{"a": {Name: "ok"}, "b": {}},
-		}, "entries[b].name is required"},
+		}, "refEntry[b].name is required"},
 		{"missing in slice entry", &sampleWithRequiredMap{
 			Items: []mapRequired{{Name: "ok"}, {}},
 		}, "items[1].name is required"},
@@ -265,7 +265,7 @@ func TestProcess_OneOf(t *testing.T) {
 		{"exactly one", &oneofEntry{Desc: "ok", OptionA: "val"}, 0, ""},
 		{"neither", &oneofEntry{Desc: "ok"}, 1, "optionA/optionB: must set one of [optionA, optionB]"},
 		{"both", &oneofEntry{Desc: "ok", OptionA: "a", OptionB: "b"}, 1, "optionA/optionB: optionA and optionB are mutually exclusive"},
-		{"invalid in map", &sampleWithOneOf{Tools: map[string]oneofEntry{
+		{"invalid in map", &sampleWithOneOf{Entries: map[string]oneofEntry{
 			"good": {Desc: "ok", OptionA: "a"}, "bad": {Desc: "oops"},
 		}}, 1, "tools[bad]: must set one of [optionA, optionB]"},
 		{"invalid in slice", &sampleWithOneOf{Items: []oneofEntry{
@@ -383,15 +383,15 @@ func TestProcess_NotReserved(t *testing.T) {
 	}
 }
 
-// refTool is a minimal map-entry type for ref= testing.
-type refTool struct {
+// refEntry is a minimal map-entry type for ref= testing.
+type refEntry struct {
 	Name string `yaml:"name"`
 }
 
 // refHolder has a string field that must reference a key in its own tools map.
 type refHolder struct {
-	Tools   map[string]refTool `yaml:"tools"`
-	ToolRef string             `yaml:"tool" agentsmithy:"ref=tools"`
+	Entries  map[string]refEntry `yaml:"tools"`
+	EntryRef string              `yaml:"tool" agentsmithy:"ref=tools"`
 }
 
 func TestProcess_Ref(t *testing.T) {
@@ -402,16 +402,16 @@ func TestProcess_Ref(t *testing.T) {
 		wantMsg  string
 	}{
 		{"valid ref", &refHolder{
-			Tools:   map[string]refTool{"search_for": {}},
-			ToolRef: "search_for",
+			Entries:  map[string]refEntry{"alpha": {}},
+			EntryRef: "alpha",
 		}, 0, ""},
 		{"invalid ref", &refHolder{
-			Tools:   map[string]refTool{"search_for": {}},
-			ToolRef: "missing",
+			Entries:  map[string]refEntry{"alpha": {}},
+			EntryRef: "missing",
 		}, 1, `"missing" does not match any declared key`},
-		{"no keys to validate against", &refHolder{ToolRef: "anything"}, 0, ""},
+		{"no keys to validate against", &refHolder{EntryRef: "anything"}, 0, ""},
 		{"zero ref value skipped", &refHolder{
-			Tools: map[string]refTool{"search_for": {}},
+			Entries: map[string]refEntry{"alpha": {}},
 		}, 0, ""},
 		{"nil", (*refHolder)(nil), 0, ""},
 	}
