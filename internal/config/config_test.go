@@ -46,7 +46,13 @@ func TestParse(t *testing.T) {
 version: "1"
 project:
   name: test
-  description: test project
+  instruction: test
+  models:
+    ollama:
+      default: { model: m }
+pipeline:
+  autonomous:
+    model: { provider: ollama, name: default }
 `,
 		},
 		{

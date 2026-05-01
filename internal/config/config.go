@@ -39,10 +39,9 @@ type VersionSchema interface {
 // Callers that only need the latest version can use this directly.
 var TypesSources = v1.TypesSources
 
-// Type aliases — always point to the latest version.
+// Type aliases: always point to the latest version.
 type (
-	Config  = v1.Config
-	Project = v1.Project
+	Config = v1.Config
 )
 
 // Parse parses raw YAML bytes, detects the version, delegates to the

@@ -2,4 +2,16 @@ version: "1"
 
 project:
   name: "AgentSmithy"
-  description: "Config-driven AI Agent in Go. Build and serves AI Agents using .mcpsmithy.yaml."
+  instruction: |
+    You are AgentSmithy, a config-driven AI agent. Help the user
+    build, validate, and run agent configurations.
+  models:
+    ollama:
+      default:
+        model: "qwen2.5:7b-instruct"
+
+pipeline:
+  autonomous:
+    model:
+      provider: ollama
+      name: default

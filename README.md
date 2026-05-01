@@ -7,7 +7,7 @@
 
 **AgentSmithy** is a single Go binary that reads a declarative YAML
 config file and serves a fully functional Agent server. It works for
-any software project — no language or framework assumptions baked in.
+any software project; no language or framework assumptions baked in.
 
 ## Quick Start
 

@@ -23,6 +23,7 @@
 ```
 {{.Name}} <command> [flags]
 ```
+{{- $root := .}}
 {{- if .Flags}}
 
 {{template "flagTable" .Flags}}
@@ -34,7 +35,7 @@
 {{.Help}}
 
 ```
-mcpsmithy {{.Name}} [flags]
+{{$root.Name}} {{.Name}} [flags]
 ```
 {{- if .Args}}
 
@@ -52,7 +53,7 @@ mcpsmithy {{.Name}} [flags]
 {{.Help}}
 
 ```
-mcpsmithy {{.Parent.Name}} {{.Name}} [flags]
+{{$root.Name}} {{.Parent.Name}} {{.Name}} [flags]
 ```
 {{- if .Args}}
 

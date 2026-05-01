@@ -7,7 +7,7 @@ import (
 	"text/template"
 
 	"github.com/alecthomas/kong"
-	"github.com/iorubs/agentsmithy/internal/commands"
+	agentcmd "github.com/iorubs/agentsmithy/pkg/cmd"
 )
 
 // CommandData holds a Kong node with pre-filtered flags, args, and subcommands
@@ -31,7 +31,7 @@ var cliOutDir = filepath.Join("docs", "user", "reference", "server")
 
 // generateCLIDocs generates a single CLI reference page from the Kong parser model.
 func generateCLIDocs() error {
-	var cli commands.CLI
+	var cli agentcmd.CLI
 	parser, err := kong.New(&cli,
 		kong.Description("Project-agnostic AI Agent server. Reads .agentsmithy.yaml and serves an AI Agent."),
 	)
