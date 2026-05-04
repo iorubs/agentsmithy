@@ -17,7 +17,7 @@ myself) and iterate on the prompt without writing any code.
 - Use whatever model is convenient: Ollama / LM Studio locally, or any
   OpenAI-compatible endpoint
 - Add tools or skills incrementally as the agent's job grows
-- Talk to it from the terminal (`agentsmithy chat`) or expose it
+- Talk to it from the terminal (`stdio`) or expose it
   over MCP / A2A for an editor or another agent to call
 
 ## Technical overview

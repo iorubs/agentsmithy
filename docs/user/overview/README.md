@@ -25,11 +25,9 @@ behind `smithy agent ...`.
 
 ## How it works
 
-1. Author a `.agentsmithy.yaml` describing one agent: its model(s),
-   tools, system prompt, and how it should be served.
+1. Author a `.agentsmithy.yaml` describing one agent: its model(s), tools, system prompt, and how it should be served.
 2. Run `agentsmithy validate` to catch errors before you start.
-3. Run `agentsmithy serve` to expose the agent over a transport, or
-   `agentsmithy chat` to talk to it directly from a terminal.
+3. Run `agentsmithy serve` to expose the agent over a transport; e.g `--transport=stdio` to talk to it directly from a terminal.
 
 AgentSmithy serves one root agent per process. That root may be a
 single autonomous agent or an orchestrator (`sequential`, `parallel`,

@@ -676,7 +676,7 @@ behavior actually needs constraining.
 #### Autonomous (single-agent chat)
 
 The smallest useful config: one LLM, no tools. Run with
-`agentsmithy chat -c .agentsmithy.yaml` and talk to it.
+`agentsmithy serve --transport=stdio` and talk to it.
 
 ```yaml
 version: "1"
