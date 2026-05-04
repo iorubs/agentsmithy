@@ -1,0 +1,26 @@
+services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+  model:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=ollama:11434
+      - MODEL=${MODEL:-qwen2.5:7b-instruct}
+    entrypoint: ["/bin/sh", "-c", "ollama pull $$MODEL"]
+    restart: "no"
+
+volumes:
+  ollama_data:
