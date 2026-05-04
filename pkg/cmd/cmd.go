@@ -30,7 +30,6 @@ type Commands struct {
 	Serve    ServeCmd    `cmd:"" help:"Start the agent server."`
 	Validate ValidateCmd `cmd:"" help:"Validate config file."`
 	Setup    SetupCmd    `cmd:"" help:"Start the config-authoring MCP assistant."`
-	Chat     ChatCmd     `cmd:"" help:"Chat with the configured agent (minimal stdio REPL)."`
 }
 
 // ConfigFlag is the standard config-path mixin for subcommands that load an .agentsmithy.yaml file.

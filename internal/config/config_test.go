@@ -48,11 +48,11 @@ project:
   name: test
   instruction: test
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
 `,
 		},
 		{

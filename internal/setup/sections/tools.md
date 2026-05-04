@@ -3,8 +3,8 @@
 The `tools` key is the **catalog** of every tool the pipeline can
 reach. It is split into two maps by transport:
 
-- `mcp:` for MCP servers reached over SSE/HTTP. Each entry is a
-  named endpoint that exposes one or more tools.
+- `mcp:` for MCP servers reached over Streamable HTTP. Each entry
+  is a named endpoint that exposes one or more tools.
 - `a2a:` for agentsmithy-or-A2A-compatible services reached over
   HTTP. Each entry is another agent the pipeline can invoke as a
   tool.
@@ -38,8 +38,8 @@ and clever.
 ### MCP vs. A2A: Pick by Protocol
 
 - **MCP** when the endpoint speaks MCP, a skill server exposing
-  one or more tools over SSE/HTTP. The agent treats each MCP tool
-  as an individually-named callable.
+  one or more tools over Streamable HTTP. The agent treats each
+  MCP tool as an individually-named callable.
 - **A2A** when the endpoint speaks A2A, another agentsmithy
   service or A2A-compatible agent. The agent treats it as a single
   callable that takes input and returns output.

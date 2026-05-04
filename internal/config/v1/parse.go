@@ -15,7 +15,6 @@ import (
 var typesSource string
 
 // TypesSources returns all Go source files needed for doc generation.
-// Includes both the v1 types and the shared schema types.
 var TypesSources = []string{typesSource}
 
 // Schema satisfies the config.VersionSchema interface for v1.

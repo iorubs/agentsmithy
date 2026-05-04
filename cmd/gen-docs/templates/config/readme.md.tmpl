@@ -14,3 +14,321 @@ Auto-generated schema and authoring reference for `.agentsmithy.yaml`.
 ---
 
 {{readSection "project"}}
+
+#### Local OpenAI-compatible (Ollama / LM Studio)
+
+Point `baseUrl` at any local OpenAI-compatible server. No API key
+needed — the runtime sends an empty `Authorization` header when the
+provider is `openai` and `baseUrl` is set.
+
+```yaml
+project:
+  name: my-assistant
+  instruction: |
+    A helpful local assistant.
+  models:
+    openai:
+      default:
+        model: qwen2.5:7b-instruct
+        baseUrl: http://localhost:11434/v1
+        temperature: 0.2
+        maxTokens: 2048
+```
+
+Need a one-shot way to bring Ollama up with a model preloaded? Drop
+the snippet below into `docker-compose.yml` next to your agent
+config and run `docker compose up -d ollama model`. The `model`
+service exits after the pull; `ollama` keeps serving on
+`http://localhost:11434`, which is what `baseUrl` above points at.
+
+```yaml
+services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+  model:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=ollama:11434
+      - MODEL=${MODEL:-qwen2.5:7b-instruct}
+    entrypoint: ["/bin/sh", "-c", "ollama pull $$MODEL"]
+    restart: "no"
+
+volumes:
+  ollama_data:
+```
+
+#### Multi-tier model catalog
+
+Declare aliases by **task**, not by model. `default` is the workhorse,
+`fast` is for cheap classification or routing. Sub-agents pick
+the alias they need — switching models later is one edit per alias.
+
+```yaml
+project:
+  name: research-assistant
+  instruction: |
+    Research assistant that answers questions from the docs corpus.
+  models:
+    openai:
+      default:
+        model: gpt-4o-mini
+        temperature: 0.2
+      fast:
+        model: gpt-4o-nano
+        temperature: 0.0
+        maxTokens: 256
+```
+
+#### Borrowed provider (host-LLM via MCP sampling)
+
+`provider: borrowed` ships an agent into any MCP-aware host without
+distributing API keys. The host's LLM (VS Code Copilot, Claude
+Desktop, etc.) does the completion via `sampling/createMessage`.
+Requires an MCP transport (`mcp-stdio` / `mcp-http`); cannot be paired
+with `tools:` or `subagents:` on autonomous agents because MCP
+sampling has no field for tool definitions.
+
+```yaml
+project:
+  name: review-helper
+  instruction: |
+    Review the supplied diff and summarise risks.
+  models:
+    borrowed:
+      default:
+        maxTokens: 1024
+```
+
+---
+
+{{readSection "tools"}}
+
+#### MCP toolset (paired mcpsmithy server)
+
+The canonical companion: an `agentsmithy` agent + an `mcpsmithy`
+server, wired together. The agent calls the server over MCP for
+docs search, convention lookup, and any tool the server exposes.
+
+```yaml
+tools:
+  mcp:
+    docs: "http://localhost:8080/sse"
+```
+
+Then reference it from any agent's `tools:` list:
+
+```yaml
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+    tools: [docs]
+```
+
+#### A2A: another agentsmithy agent as a tool
+
+`tools.a2a` lets one agent call another agentsmithy service as a
+single tool. Use it to compose pipelines across processes — the
+caller doesn't see the callee's internal sub-agents, only its
+top-level reply.
+
+```yaml
+tools:
+  a2a:
+    reviewer: "http://localhost:9090/"
+```
+
+---
+
+{{readSection "pipeline"}}
+
+#### Autonomous (single-agent chat)
+
+The smallest useful config: one LLM, no tools. Run with
+`agentsmithy chat -c .agentsmithy.yaml` and talk to it.
+
+```yaml
+version: "1"
+project:
+  name: chat
+  instruction: |
+    You are a helpful assistant.
+  models:
+    openai:
+      default: { model: gpt-4o-mini }
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+```
+
+#### Autonomous with sub-agent delegation
+
+Sub-agents on an autonomous parent are **delegation targets**. The
+parent's LLM may hand control off via `transfer_to_agent`. Children
+inherit the parent's `model:` so the catalog stays minimal.
+
+```yaml
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+    instruction: |
+      Triage the user's question and hand off to a specialist.
+    subagents:
+      - name: code-helper
+        autonomous:
+          instruction: Answer code questions.
+          inherits: [model]
+      - name: docs-helper
+        autonomous:
+          instruction: Answer documentation questions.
+          inherits: [model]
+```
+
+#### Sequential pipeline (researcher → reviewer → refiner)
+
+Steps run in declaration order; each child sees the prior child's
+output. The last child's reply is the parent's default output.
+
+```yaml
+pipeline:
+  sequential:
+    model: { provider: openai, name: default }
+    subagents:
+      - name: researcher
+        autonomous:
+          instruction: Gather facts on the user's topic.
+          inherits: [model, tools]
+      - name: reviewer
+        autonomous:
+          instruction: Critique the research for gaps.
+          inherits: [model]
+      - name: refiner
+        autonomous:
+          instruction: Rewrite the research addressing the critique.
+          inherits: [model]
+    tools: [docs]
+```
+
+#### Parallel fan-out with synthesis
+
+Children run concurrently against the same input. The default output
+is a `name → output` map; declare an explicit `output:` to shape it
+for downstream consumers.
+
+```yaml
+pipeline:
+  parallel:
+    model: { provider: openai, name: default }
+    subagents:
+      - name: web
+        autonomous:
+          instruction: Summarise relevant web search results.
+          inherits: [model]
+      - name: docs
+        autonomous:
+          instruction: Summarise relevant internal docs.
+          inherits: [model]
+    output: |
+      Web: {{`{{ .web.output }}`}}
+      Docs: {{`{{ .docs.output }}`}}
+```
+
+#### Loop with `requireToolCall` guard
+
+A loop repeats until `until:` renders non-empty, the body emits
+`exit_loop`, or `maxIterations` is hit. Pair it with the
+`requireToolCall` guard on an autonomous child to force structured
+tool use until the exit predicate is satisfied.
+
+```yaml
+pipeline:
+  loop:
+    model: { provider: openai, name: default }
+    maxIterations: 5
+    until: '{{`{{ skill "tests-pass" .codegen.output }}`}}'
+    subagents:
+      - name: codegen
+        autonomous:
+          instruction: |
+            Edit the code until tests pass. Use the file and shell
+            tools — don't answer in plain text.
+          inherits: [model, tools, skills]
+          skills:
+            guards: [requireToolCall]
+          maxIterations: 3
+```
+
+#### Orchestrator (explicit step graph)
+
+`orchestrator` is for fixed flows where the *shape* of the work is
+known up front. Steps invoke tools, sub-agents, or one-shot prompts
+via Go-template helpers; each step's record is exposed to subsequent
+steps as `.<stepName>.output`.
+
+```yaml
+pipeline:
+  orchestrator:
+    model: { provider: openai, name: default }
+    tools: [docs]
+    subagents:
+      - name: web
+        autonomous:
+          instruction: Search the web.
+          inherits: [model]
+    steps:
+      - name: research
+        run: '{{`{{ tool "docs" .input }}`}}'
+      - name: web_run
+        run: '{{`{{ agent "web" .input }}`}}'
+      - name: combine
+        run: |
+          Docs: {{`{{ .research.output }}`}}
+          Web:  {{`{{ .web_run.output }}`}}
+    output: '{{`{{ .combine.output }}`}}'
+```
+
+#### Skills: shell + file + web sandboxes
+
+Skills bind built-in capabilities to an agent. `shell` declares
+allow-listed commands, `file` gates sandboxed read/write rooted at
+`workingDir`, and `web` allow-lists URLs for single-page scraping. Each block
+can be exposed as ADK tools (autonomous) or as `{{`{{ skill "name" }}`}}`
+helpers (composition kinds).
+
+```yaml
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+    instruction: |
+      Help maintain this project. Use the available skills before
+      answering.
+    skills:
+      shell:
+        run-tests:
+          command: ["go", "test", "./..."]
+          workingDir: "."
+      file:
+        workingDir: "."
+        read:
+          enabled: true
+          paths: ["**/*.go", "**/*.md"]
+        write:
+          enabled: true
+          paths: ["docs/**/*.md"]
+      web:
+        get:
+          enabled: true
+          urls: ["https://pkg.go.dev"]
+```

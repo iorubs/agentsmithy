@@ -65,12 +65,26 @@ func Process(v any) []error {
 			}
 		}
 
-		// Reserved name.
-		if info.NotReserved && fv.Kind() == reflect.String {
-			val := fv.String()
-			if slices.Contains(reservedContextKeys, val) {
-				errs = append(errs, fmt.Errorf("%s: %q is a reserved name (must not be one of: %s)",
-					path, val, strings.Join(reservedContextKeys, ", ")))
+		// Reserved name. Applies to a string field (the value) or to a
+		// map (each key).
+		if info.NotReserved {
+			switch fv.Kind() {
+			case reflect.String:
+				val := fv.String()
+				if slices.Contains(reservedContextKeys, val) {
+					errs = append(errs, fmt.Errorf("%s: %q is a reserved name (must not be one of: %s)",
+						path, val, strings.Join(reservedContextKeys, ", ")))
+				}
+			case reflect.Map:
+				if fv.Type().Key().Kind() == reflect.String {
+					for _, k := range fv.MapKeys() {
+						val := k.String()
+						if slices.Contains(reservedContextKeys, val) {
+							errs = append(errs, fmt.Errorf("%s[%s]: %q is a reserved name (must not be one of: %s)",
+								path, val, val, strings.Join(reservedContextKeys, ", ")))
+						}
+					}
+				}
 			}
 		}
 

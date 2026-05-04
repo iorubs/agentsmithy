@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-// isNestedStruct reports whether fv is a struct, ptr-to-struct, or map —
+// isNestedStruct reports whether fv is a struct, ptr-to-struct, or map,
 // i.e. a container the walker recurses into. Slices are excluded so that
 // value slices ([]any, []string, etc.) can participate in oneof groups as leaf values.
 func isNestedStruct(fv reflect.Value) bool {

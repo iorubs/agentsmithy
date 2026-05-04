@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-
 // tagName is the struct tag key used by agentsmithy for field metadata.
 const tagName = "agentsmithy"
 
@@ -14,10 +13,13 @@ const tagName = "agentsmithy"
 // It is the canonical definition shared across all config versions.
 const ReservedContextKey = "agentsmithy"
 
+// ReservedInputKey is the template scope key holding the agent's
+// inbound user message. Sub-agent and step names must not collide.
+const ReservedInputKey = "input"
+
 // reservedContextKeys lists all template context keys injected by the engine.
 // User-defined param names must not collide with any of these.
-var reservedContextKeys = []string{ReservedContextKey}
-
+var reservedContextKeys = []string{ReservedContextKey, ReservedInputKey}
 
 // valuer is implemented by named string types that have a fixed set of
 // valid values (enums). Process checks non-zero fields whose type implements this interface.
@@ -60,7 +62,6 @@ type typeClassifier interface {
 }
 
 var typeClassifierType = reflect.TypeFor[typeClassifier]()
-
 
 // isZero reports whether a value is the zero value for its type.
 func isZero(v reflect.Value) bool {
@@ -113,7 +114,6 @@ func unwrapType(t reflect.Type) reflect.Type {
 	}
 	return t
 }
-
 
 // SchemaDoc holds the fully described schema for a config version.
 type SchemaDoc struct {

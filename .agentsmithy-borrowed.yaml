@@ -1,0 +1,20 @@
+version: "1"
+
+project:
+  name: "AgentSmithyBorrowed"
+  instruction: |
+    You are AgentSmithy, a config-driven AI agent. Your model is
+    borrowed from the connecting MCP client (e.g. VS Code Copilot)
+    via sampling/createMessage. Help the user build, validate, and
+    run agent configurations.
+  models:
+    borrowed:
+      default:
+        model: "default"
+        maxTokens: 1024
+
+pipeline:
+  autonomous:
+    model:
+      provider: borrowed
+      name: default

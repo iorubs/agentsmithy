@@ -4,8 +4,6 @@ Developer guide for the `.agentsmithy.yaml` config format: schema
 design, versioning, and how to extend it. For the user-facing field
 reference, see the auto-generated docs in
 [`docs/user/reference/config/`](../user/reference/config/README.md).
-For the locked-in shape decisions (D1–D28), see the Decision Log in
-[`AGENTSMITHY-PLAN.md`](../../../AGENTSMITHY-PLAN.md).
 
 ## Single Source of Truth: the `agentsmithy` Struct Tag
 

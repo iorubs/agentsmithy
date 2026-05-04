@@ -19,22 +19,22 @@ func TestParse(t *testing.T) {
 project:
   name: sample-assistant
   instruction: |
-    Research assistant for Axion.
+    Research assistant for sample.
   models:
-    ollama:
+    openai:
       default:
         model: qwen2.5:7b-instruct
-        baseUrl: http://localhost:11434
+        baseUrl: http://localhost:11434/v1
         temperature: 0.2
         maxTokens: 2048
 tools:
   mcp:
-    docs: "http://localhost:8080/sse"
+    docs: "http://localhost:8080/"
   a2a:
     reviewer: "http://localhost:9090/"
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     tools: [docs, reviewer]
     skills:
       guards: [requireToolCall]
@@ -44,12 +44,12 @@ pipeline:
 				Version: "1",
 				Project: Project{
 					Name:        "sample-assistant",
-					Instruction: "Research assistant for Axion.\n",
+					Instruction: "Research assistant for sample.\n",
 					Models: Models{
-						Ollama: map[string]ModelEntry{
+						OpenAI: map[string]ModelEntry{
 							"default": {
 								Model:       "qwen2.5:7b-instruct",
-								BaseURL:     "http://localhost:11434",
+								BaseURL:     "http://localhost:11434/v1",
 								Temperature: new(0.2),
 								MaxTokens:   new(2048),
 							},
@@ -57,12 +57,12 @@ pipeline:
 					},
 				},
 				Tools: Tools{
-					MCP: map[string]string{"docs": "http://localhost:8080/sse"},
+					MCP: map[string]string{"docs": "http://localhost:8080/"},
 					A2A: map[string]string{"reviewer": "http://localhost:9090/"},
 				},
 				Pipeline: Pipeline{
 					Autonomous: &Autonomous{
-						Model: &ModelRef{Provider: ProviderOllama, Name: "default"},
+						Model: &ModelRef{Provider: ProviderOpenAI, Name: "default"},
 						Tools: []string{"docs", "reviewer"},
 						Skills: Skills{
 							Guards: []Guard{GuardRequireToolCall},
@@ -79,20 +79,20 @@ project:
   name: pipeline
   instruction: root
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   sequential:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     subagents:
       - name: drafter
-        instruction: draft
-        inherits: [model]
-        autonomous: {}
+        autonomous:
+          instruction: draft
+          inherits: [model]
       - name: reviewer
-        instruction: review
-        inherits: [model, tools]
-        autonomous: {}
+        autonomous:
+          instruction: review
+          inherits: [model, tools]
 `,
 			want: &Config{
 				Version: "1",
@@ -100,24 +100,26 @@ pipeline:
 					Name:        "pipeline",
 					Instruction: "root",
 					Models: Models{
-						Ollama: map[string]ModelEntry{"default": {Model: "m"}},
+						OpenAI: map[string]ModelEntry{"default": {Model: "m"}},
 					},
 				},
 				Pipeline: Pipeline{
 					Sequential: &Sequential{
-						Model: &ModelRef{Provider: ProviderOllama, Name: "default"},
+						Model: &ModelRef{Provider: ProviderOpenAI, Name: "default"},
 						Subagents: []SubAgent{
 							{
-								Name:        "drafter",
-								Instruction: "draft",
-								Inherits:    []InheritField{InheritModel},
-								Autonomous:  &Autonomous{},
+								Name: "drafter",
+								Autonomous: &Autonomous{
+									Instruction: "draft",
+									Inherits:    []InheritField{InheritModel},
+								},
 							},
 							{
-								Name:        "reviewer",
-								Instruction: "review",
-								Inherits:    []InheritField{InheritModel, InheritTools},
-								Autonomous:  &Autonomous{},
+								Name: "reviewer",
+								Autonomous: &Autonomous{
+									Instruction: "review",
+									Inherits:    []InheritField{InheritModel, InheritTools},
+								},
 							},
 						},
 					},
@@ -131,11 +133,11 @@ project:
   name: orch
   instruction: root
   models:
-    openai:
-      default: { model: gpt-4o-mini }
+    anthropic:
+      default: { model: claude-3-5-sonnet }
 pipeline:
   orchestrator:
-    model: { provider: openai, name: default }
+    model: { provider: anthropic, name: default }
     steps:
       - name: research
         run: '{{ tool "docs" .input }}'
@@ -149,12 +151,12 @@ pipeline:
 					Name:        "orch",
 					Instruction: "root",
 					Models: Models{
-						OpenAI: map[string]ModelEntry{"default": {Model: "gpt-4o-mini"}},
+						Anthropic: map[string]ModelEntry{"default": {Model: "claude-3-5-sonnet"}},
 					},
 				},
 				Pipeline: Pipeline{
 					Orchestrator: &Orchestrator{
-						Model: &ModelRef{Provider: ProviderOpenAI, Name: "default"},
+						Model: &ModelRef{Provider: ProviderAnthropic, Name: "default"},
 						Steps: []OrchestratorStep{
 							{Name: "research", Run: `{{ tool "docs" .input }}`},
 							{Name: "review", Run: `{{ tool "reviewer" .research.output }}`},
@@ -171,11 +173,11 @@ project:
   name: loop-pipeline
   instruction: root
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   loop:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     maxIterations: 5
     until: '{{ skill "tests-pass" .codegen.output }}'
     memory:
@@ -183,9 +185,9 @@ pipeline:
       inherit: true
     subagents:
       - name: codegen
-        instruction: write
-        inherits: [model]
-        autonomous: {}
+        autonomous:
+          instruction: write
+          inherits: [model]
 `,
 			want: &Config{
 				Version: "1",
@@ -193,12 +195,12 @@ pipeline:
 					Name:        "loop-pipeline",
 					Instruction: "root",
 					Models: Models{
-						Ollama: map[string]ModelEntry{"default": {Model: "m"}},
+						OpenAI: map[string]ModelEntry{"default": {Model: "m"}},
 					},
 				},
 				Pipeline: Pipeline{
 					Loop: &Loop{
-						Model:         &ModelRef{Provider: ProviderOllama, Name: "default"},
+						Model:         &ModelRef{Provider: ProviderOpenAI, Name: "default"},
 						MaxIterations: 5,
 						Until:         `{{ skill "tests-pass" .codegen.output }}`,
 						Memory: Memory{
@@ -207,18 +209,17 @@ pipeline:
 						},
 						Subagents: []SubAgent{
 							{
-								Name:        "codegen",
-								Instruction: "write",
-								Inherits:    []InheritField{InheritModel},
-								Autonomous:  &Autonomous{},
+								Name: "codegen",
+								Autonomous: &Autonomous{
+									Instruction: "write",
+									Inherits:    []InheritField{InheritModel},
+								},
 							},
 						},
 					},
 				},
 			},
 		},
-
-		// errors
 
 		{
 			name:    "malformed YAML",
@@ -232,11 +233,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     bogus: nope
 `,
 			wantErr: "parsing config",
@@ -247,25 +248,25 @@ pipeline:
 project:
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
 `,
 			wantErr: "name is required",
 		},
 		{
-			name: "missing required instruction",
+			name: "missing required instruction at project level",
 			yaml: `version: "1"
 project:
   name: x
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
 `,
 			wantErr: "instruction is required",
 		},
@@ -276,7 +277,7 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline: {}
 `,
@@ -289,17 +290,16 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
   sequential:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     subagents:
       - name: c
-        instruction: i
-        autonomous: {}
+        autonomous: { instruction: i }
 `,
 			wantErr: "mutually exclusive",
 		},
@@ -310,14 +310,13 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   sequential:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     subagents:
       - name: child
-        instruction: i
 `,
 			wantErr: "must set one of",
 		},
@@ -328,13 +327,13 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: anthropic, name: default }
+    model: { provider: bogus, name: default }
 `,
-			wantErr: "must be one of [ollama, openai]",
+			wantErr: "must be one of [openai, anthropic, google, bedrock, vertex, borrowed]",
 		},
 		{
 			name: "subagent missing instruction",
@@ -343,11 +342,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   sequential:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     subagents:
       - name: child
         autonomous: {}
@@ -361,15 +360,14 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   loop:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     subagents:
       - name: child
-        instruction: i
-        autonomous: {}
+        autonomous: { instruction: i }
 `,
 			wantErr: "maxIterations is required",
 		},
@@ -380,11 +378,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   sequential:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
 `,
 			wantErr: "subagents is required",
 		},
@@ -395,11 +393,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   orchestrator:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     output: '{{ .input }}'
 `,
 			wantErr: "steps is required",
@@ -411,11 +409,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   orchestrator:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     steps:
       - name: s1
         run: '{{ .input }}'
@@ -429,11 +427,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   orchestrator:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     output: '{{ .s1.output }}'
     steps:
       - name: s1
@@ -447,11 +445,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: bogus }
+    model: { provider: openai, name: bogus }
 `,
 			wantErr: `"bogus" does not match any declared key`,
 		},
@@ -462,15 +460,14 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   sequential:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     subagents:
       - name: agentsmithy
-        instruction: i
-        autonomous: {}
+        autonomous: { instruction: i }
 `,
 			wantErr: "reserved name",
 		},
@@ -481,11 +478,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   orchestrator:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     output: '{{ .s1.output }}'
     steps:
       - name: s1
@@ -500,11 +497,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   orchestrator:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     output: '{{ bogus .input }}'
     steps:
       - name: s1
@@ -519,14 +516,14 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 tools:
   mcp:
     docs: http://localhost:7000
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     tools: [doc]
 `,
 			wantErr: `"doc" does not match any declared key`,
@@ -538,7 +535,7 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 tools:
   mcp:
@@ -547,7 +544,7 @@ tools:
     reviewer: http://localhost:7100
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     tools: [docs, reviewer]
 `,
 		},
@@ -558,11 +555,11 @@ project:
   name: x
   instruction: i
   models:
-    ollama:
+    openai:
       default: { model: m }
 pipeline:
   autonomous:
-    model: { provider: ollama, name: default }
+    model: { provider: openai, name: default }
     skills:
       guards: [bogusGuard]
 `,
@@ -602,3 +599,5 @@ func TestSchemaRootType(t *testing.T) {
 		t.Errorf("expected Config, got %T", rt)
 	}
 }
+
+func new[T any](v T) *T { return &v }
