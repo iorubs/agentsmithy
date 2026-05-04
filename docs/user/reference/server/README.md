@@ -25,9 +25,11 @@ agentsmithy serve [flags]
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `-c, --config` | `string` | `.agentsmithy.yaml` | Path to config. |
-| `--transport` | `enum(a2a,stdio,mcp-stdio,mcp-http)` | `a2a` | Transport to use. |
+| `--transport` | `enum(a2a,stdio,mcp-stdio,mcp-http)` | `a2a` | Transport to use (one of: a2a,stdio,mcp-stdio,mcp-http). |
 | `--addr` | `string` | `:8080` | Listen address (HTTP-like transports). |
 | `--watch` | `bool` | `false` | Watch config file and hot-reload on change. |
+| `-o, --once` | `string` | — | (stdio only) Send a single prompt, print the reply, then exit. |
+| `-v, --verbose` | `bool` | — | (stdio only) Print tool calls and intermediate steps. |
 
 
 ### validate
@@ -50,18 +52,3 @@ Start the config-authoring MCP assistant.
 ```
 agentsmithy setup [flags]
 ```
-
-### chat
-
-Chat with the configured agent (minimal stdio REPL).
-
-```
-agentsmithy chat [flags]
-```
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `-c, --config` | `string` | `.agentsmithy.yaml` | Path to config. |
-| `-o, --once` | `string` | — | Single-shot input; print response and exit. |
-| `-v, --verbose` | `bool` | — | Print tool calls and intermediate steps. |
-

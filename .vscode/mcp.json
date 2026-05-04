@@ -1,0 +1,18 @@
+{
+  "servers": {
+    "my-agent": {
+      "command": "${workspaceFolder}/agentsmithy",
+      "args": [
+        "serve",
+        "--transport",
+        "mcp-stdio",
+        "--config",
+        "${workspaceFolder}/.agentsmithy-borrowed.yaml"
+      ]
+    },
+    "coding-assistant": {
+      "type": "http",
+      "url": "http://127.0.0.1:8082/"
+    }
+  },
+}

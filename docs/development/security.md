@@ -46,6 +46,31 @@ Tool access is gated by what the config declares:
   validates everything else; there is no separate runtime
   permission system to drift out of sync.
 
+### Skills
+
+Skills (`shell`, `file`, `web`) extend the tool surface with
+side-effecting capabilities. Each kind ships its own boundary so a
+declared skill cannot reach beyond what the config allows:
+
+- **Shell.** Each entry is a fixed `command` array; the runtime
+  spawns it with `exec.Command` (no `sh -c`), in the entry's
+  `workingDir`, with an empty environment (`cmd.Env = []string{}`).
+  Validation rejects shell-interpreter `command[0]` (`sh`, `bash`,
+  `zsh`, etc.), spliced templates inside arguments, and reserved
+  arg names. Templates may render whole `command[]` elements but
+  never partial strings, so user input cannot be concatenated into
+  a command line.
+- **File.** All reads and writes go through `pipeline/skills/sandbox`,
+  which resolves `workingDir` to an absolute path (following
+  symlinks) and rejects any access whose resolved path doesn't sit
+  under it. Per-op `paths:` allowlists narrow access further.
+  Symlink traversal and `..` segments are rejected.
+- **Web.** `web` only accepts URLs whose
+  `scheme://host` prefix appears in the per-skill allowlist.
+  Response bodies are capped at 10 MB. Redirects are not followed
+  (the HTTP client returns an error on any 3xx) so the allowlist
+  cannot be bypassed by a redirect to an off-list host.
+
 ### Stderr-only logging
 
 All logs go to stderr. Stdout is reserved for stdio transport

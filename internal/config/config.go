@@ -41,7 +41,22 @@ var TypesSources = v1.TypesSources
 
 // Type aliases: always point to the latest version.
 type (
-	Config = v1.Config
+	Config     = v1.Config
+	Models     = v1.Models
+	ModelEntry = v1.ModelEntry
+	ModelRef   = v1.ModelRef
+	Provider   = v1.Provider
+)
+
+// Constant aliases; re-export values so consumers never import v1 directly.
+const (
+	// Provider keys mirroring v1.Provider*. Keeps callers off v1.
+	ProviderOpenAI    = v1.ProviderOpenAI
+	ProviderAnthropic = v1.ProviderAnthropic
+	ProviderGoogle    = v1.ProviderGoogle
+	ProviderBedrock   = v1.ProviderBedrock
+	ProviderVertex    = v1.ProviderVertex
+	ProviderBorrowed  = v1.ProviderBorrowed
 )
 
 // Parse parses raw YAML bytes, detects the version, delegates to the

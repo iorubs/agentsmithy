@@ -18,18 +18,17 @@ and tools are wired internally.
 The file has three sections:
 
 - **`project`**: identity and the **model catalog**. Declares the
-  service name, the root system prompt, and the models the pipeline
-  is allowed to use. Models are grouped by provider.
+  service name, the root system prompt, and the models the
+  pipeline is allowed to use. Models are grouped by provider.
 - **`tools`**: the **tool catalog**. Names declared here (under
   `mcp:` or `a2a:`) are what agents reference in their `tools:` lists.
   No tools means the pipeline is pure-LLM.
 - **`pipeline`**: the agent. Exactly one of five **kinds**:
   `autonomous`, `sequential`, `parallel`, `loop`, or `orchestrator`.
-  Sub-agents nest inside the kind block and recurse with the same
-  shape. In `autonomous`, sub-agents are delegation targets the LLM
-  may hand control to (`transfer_to_agent`); in the composition
-  kinds (`sequential`, `parallel`, `loop`), they are the children
-  the kind runs.
+  The chosen kind block carries the agent's model, tools, and
+  sub-agents. Sub-agents are a `name → kind block` map and recurse
+  with the same shape; each sub-agent's `instruction:` lives inside
+  its own kind block.
 
 ### Pick the Right Kind
 
