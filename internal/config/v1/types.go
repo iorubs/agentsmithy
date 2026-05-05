@@ -382,7 +382,7 @@ type ShellSkill struct {
 	// Program and arguments. Element 0 must be a program name (not a
 	// shell interpreter). Templates may appear inside elements but
 	// must occupy the entire element — splicing template output into
-	// a literal substring (e.g. "-l {{ .path }}") is rejected.
+	// a literal substring (e.g. `"-l {{ .path }}"`) is rejected.
 	Command []string `yaml:"command" agentsmithy:"required"`
 	// Working directory for command execution. Project-rooted; no
 	// `..` escape allowed at runtime.
