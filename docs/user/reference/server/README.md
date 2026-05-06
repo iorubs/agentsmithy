@@ -25,7 +25,7 @@ agentsmithy serve [flags]
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `-c, --config` | `string` | `.agentsmithy.yaml` | Path to config. |
-| `--transport` | `enum(a2a,stdio,mcp-stdio,mcp-http)` | `a2a` | Transport to use (one of: a2a,stdio,mcp-stdio,mcp-http). |
+| `--transport` | `enum(a2a,stdio,mcp-stdio,mcp-http,none)` | `a2a` | Transport to use (one of: a2a,stdio,mcp-stdio,mcp-http,none). |
 | `--addr` | `string` | `:8080` | Listen address (HTTP-like transports). |
 | `--watch` | `bool` | `false` | Watch config file and hot-reload on change. |
 | `-o, --once` | `string` | — | (stdio only) Send a single prompt, print the reply, then exit. |

@@ -87,10 +87,10 @@ func outputCallback(selfName string, output v1.TemplateString, siblings []string
 		runtime := callbackRuntime(ctx, selfName, llm, sk)
 		rendered, err := tmpl.Render(body, scope, runtime)
 		if err != nil {
-			return nil, fmt.Errorf("agent %q output: %w", selfName, err)
+			return nil, fmt.Errorf("output: %w", err)
 		}
 		if err := ctx.State().Set(selfName, rendered); err != nil {
-			return nil, fmt.Errorf("agent %q state set: %w", selfName, err)
+			return nil, fmt.Errorf("state set: %w", err)
 		}
 		return genai.NewContentFromText(rendered, genai.RoleModel), nil
 	}

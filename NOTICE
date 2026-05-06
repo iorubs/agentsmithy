@@ -30,3 +30,11 @@ This product includes software developed by:
 - genai (https://github.com/googleapis/go-genai)
   Copyright (c) 2024-2025 Google LLC
   Licensed under the Apache License 2.0
+
+- config (github.com/aws/aws-sdk-go-v2/config)
+  Copyright 2015 Amazon.com, Inc. or its affiliates.
+  Licensed under the Apache License 2.0
+
+- bedrockruntime (github.com/aws/aws-sdk-go-v2/service/bedrockruntime)
+  Copyright 2015 Amazon.com, Inc. or its affiliates.
+  Licensed under the Apache License 2.0

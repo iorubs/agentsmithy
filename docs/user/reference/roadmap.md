@@ -35,7 +35,7 @@ AgentSmithy.
 
 - **Anthropic** native Claude API.
 - **Google** native (Gemini direct API via `google.golang.org/genai`).
-- **AWS Bedrock** (covers Claude, Llama, Titan, Mistral on AWS via SDK v2 + SigV4).
+- **AWS Bedrock** (Partial) (covers Claude, Llama, Titan, Mistral on AWS via SDK v2 + SigV4).
 - **Vertex AI** (Gemini and Anthropic on Vertex via `genai` in Vertex mode + GCP service-account auth).
 
 **Value:** Users get first-class access to each vendor without routing through OpenAI-compatible shims. Bedrock and Vertex specifically unlock managed deployments where the model lives behind cloud auth (IAM, service accounts) rather than API keys, which is a hard requirement for enterprise stacks. Each one drops into the existing registry without touching `models.go`, `build.go`, or call sites.

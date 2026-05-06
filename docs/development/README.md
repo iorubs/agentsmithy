@@ -25,36 +25,19 @@ The project follows a **stdlib-first** approach. Each addition should
 be justified by significant value over a stdlib solution, and vetted
 for maintenance status, transitive dependencies, and API stability.
 
-- `github.com/alecthomas/kong`. CLI parsing. Provides declarative
-  struct-tag-based argument definitions with no runtime dependencies.
-  Same choice and same rationale as the rest of the smithy stack;
-  revisit once the CLI surface stabilises.
-- `go.yaml.in/yaml/v4`. YAML config parsing. Maintained by the YAML
-  spec maintainers with zero transitive dependencies.
-- `github.com/modelcontextprotocol/go-sdk`. MCP client + server
-  primitives. Maintained by the MCP project (a Linux Foundation
-  series of projects). Required for the `mcp-stdio` transport and
-  for the `borrowed` model provider's `sampling/createMessage`
-  round-trip. No reasonable stdlib substitute — MCP is a wire
-  protocol with its own JSON-RPC dialect, capability negotiation,
-  and notification model.
-- `google.golang.org/adk`. Agent engine: turns a configured `LLM`,
-  tools, and an instruction into a session-driven loop with
-  streaming events, tool dispatch, and sub-agent transfer. We adopt
-  ADK's `model.LLM` interface as the provider contract
-  (`internal/project/models`) so providers slot directly into the
-  runner. ADK is large; we depend on it because re-implementing the
-  run loop, callback shape, tool dispatch, and event stream would
-  duplicate a substantial body of work. **Revisit** once the
-  runtime API stabilises: if our usage narrows to a small subset, a
-  hand-rolled loop over the provider interface may be cheaper than
-  carrying ADK's transitive surface (OpenTelemetry, gRPC, Google
-  cloud auth helpers).
-- `google.golang.org/genai`. Content / part / function-call types
-  used by ADK's `LLMRequest` and `LLMResponse`. Pulled in
-  transitively by ADK; we reference it directly in provider
-  implementations to translate to and from each provider's wire
-  format. Tied to the ADK decision above.
+- `github.com/alecthomas/kong`. CLI parsing. Provides declarative struct-tag-based argument definitions with no runtime dependencies.
+  Same choice and same rationale as the rest of the smithy stack; revisit once the CLI surface stabilises.
+- `go.yaml.in/yaml/v4`. YAML config parsing. Maintained by the YAML spec maintainers with zero transitive dependencies.
+- `github.com/modelcontextprotocol/go-sdk`. MCP client + server primitives. Maintained by the MCP project (a Linux Foundation series of projects).
+  Required for the `mcp-stdio` transport and for the `borrowed` model provider's `sampling/createMessage` round-trip.
+- `google.golang.org/adk`. Agent engine: turns a configured `LLM`, tools, and an instruction into a session-driven loop with streaming events, tool dispatch, and sub-agent transfer.
+  We adopt ADK's `model.LLM` interface as the provider contract (`internal/project/models`) so providers slot directly into the runner.
+  ADK is large; we depend on it because re-implementing the run loop, callback shape, tool dispatch, and event stream would duplicate a substantial body of work.
+  **Revisit** once the runtime API stabilises: if our usage narrows to a small subset, a hand-rolled loop over the provider interface may be cheaper than carrying ADK's transitive surface (OpenTelemetry, gRPC, Google cloud auth helpers).
+- `google.golang.org/genai`. Content / part / function-call types used by ADK's `LLMRequest` and `LLMResponse`.
+  Pulled in transitively by ADK; we reference it directly in provider implementations to translate to and from each provider's wire format.
+- github.com/aws/aws-sdk-go-v2/config. AWS SDK configuration. OfficialAWS-maintained library for loading credentials and regional defaults.Required to authenticate and route requests to AWS services.github.com/aws/aws-sdk-go-v2/service/bedrockruntime.
+- Bedrock runtimeclient. The official SDK for interacting with the Bedrock modelinference API. Used within the provider implementation to mapmodel.LLM requests to AWS infrastructure.
 
 Runtime dependencies (model SDKs, MCP SDK, agent engine) are added
 per phase as the runtime lands, behind the same vetting bar.

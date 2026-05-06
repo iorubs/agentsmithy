@@ -1,6 +1,7 @@
 package tmpl
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -150,7 +151,7 @@ func TestRender_RuntimeFuncs(t *testing.T) {
 
 func TestRender_ParseError(t *testing.T) {
 	_, err := Render(`{{ .broken `, nil, nil)
-	if err == nil || !strings.Contains(err.Error(), "template parse") {
+	if err == nil || !strings.Contains(err.Error(), "template:") {
 		t.Fatalf("err = %v; want parse error", err)
 	}
 }
@@ -162,7 +163,7 @@ func TestRender_ExecError(t *testing.T) {
 		},
 	}
 	_, err := Render(`{{ tool "fail" }}`, nil, rf)
-	if err == nil || !strings.Contains(err.Error(), "template exec") {
+	if err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("err = %v; want exec error", err)
 	}
 }
@@ -220,5 +221,25 @@ func TestJoinFunc_BadType(t *testing.T) {
 	_, err := joinFunc(",", 42)
 	if err == nil || !strings.Contains(err.Error(), "join") {
 		t.Fatalf("err = %v; want join type error", err)
+	}
+}
+
+func TestExitError_PropagatesSignal(t *testing.T) {
+	rf := RuntimeFuncs{
+		"exit_error": ExitErrorFunc,
+	}
+	_, err := Render(`{{ exit_error "something went wrong" }}`, nil, rf)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var sig *ExitSignal
+	if !errors.As(err, &sig) {
+		t.Fatalf("err = %v; want ExitSignal", err)
+	}
+	if sig.Kind != ExitError {
+		t.Errorf("Kind = %q; want %q", sig.Kind, ExitError)
+	}
+	if !strings.Contains(sig.Message, "something went wrong") {
+		t.Errorf("Message = %q; want containing 'something went wrong'", sig.Message)
 	}
 }

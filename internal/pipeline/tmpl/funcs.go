@@ -76,3 +76,27 @@ func fromJSONFunc(s string) (any, error) {
 	}
 	return v, nil
 }
+
+// ExitKind classifies exit signals.
+type ExitKind string
+
+const (
+	ExitError ExitKind = "error"
+)
+
+// ExitSignal is a sentinel error returned by the exit_error template
+// helper. Callers use errors.As to detect it and map the signal to
+// transport-appropriate responses (non-zero exit, A2A error, etc.).
+type ExitSignal struct {
+	Kind    ExitKind
+	Message string
+}
+
+func (e *ExitSignal) Error() string {
+	return fmt.Sprintf("exit_%s: %s", e.Kind, e.Message)
+}
+
+// ExitErrorFunc is the template helper registered as "exit_error".
+func ExitErrorFunc(reason string) (string, error) {
+	return "", &ExitSignal{Kind: ExitError, Message: reason}
+}

@@ -18,23 +18,25 @@ import (
 // orchestrator.
 func callbackRuntime(ctx context.Context, selfName string, llm models.LLM, sk map[string]SkillHelper) tmpl.RuntimeFuncs {
 	return tmpl.RuntimeFuncs{
-		"tool":   unsupportedHelper("tool", selfName, "output: of sequential/parallel/loop"),
-		"agent":  unsupportedHelper("agent", selfName, "output: of sequential/parallel/loop"),
-		"skill":  skillDispatch(ctx, selfName, sk),
-		"prompt": promptHelper(ctx, selfName, llm),
+		"tool":       unsupportedHelper("tool", selfName, "output: of sequential/parallel/loop"),
+		"agent":      unsupportedHelper("agent", selfName, "output: of sequential/parallel/loop"),
+		"skill":      skillDispatch(ctx, selfName, sk),
+		"prompt":     promptHelper(ctx, selfName, llm),
+		"exit_error": tmpl.ExitErrorFunc,
 	}
 }
 
 // untilRuntime is the helper set bound to a loop until: predicate.
-// D25 forbids agent here; tool is not yet wired. skill and prompt
-// are live so authors can ask the model to judge a stop condition
-// or call deterministic skills like file or shell to gate progress.
+// agent and tool are forbidden here; skill and prompt are live so
+// authors can ask the model to judge a stop condition or call
+// deterministic skills like file or shell to gate progress.
 func untilRuntime(ctx context.Context, selfName string, llm models.LLM, sk map[string]SkillHelper) tmpl.RuntimeFuncs {
 	return tmpl.RuntimeFuncs{
-		"tool":   unsupportedHelper("tool", selfName, "until: predicate"),
-		"agent":  unsupportedHelper("agent", selfName, "until: predicate (D25)"),
-		"skill":  skillDispatch(ctx, selfName, sk),
-		"prompt": promptHelper(ctx, selfName, llm),
+		"tool":       unsupportedHelper("tool", selfName, "until: predicate"),
+		"agent":      unsupportedHelper("agent", selfName, "until: predicate"),
+		"skill":      skillDispatch(ctx, selfName, sk),
+		"prompt":     promptHelper(ctx, selfName, llm),
+		"exit_error": tmpl.ExitErrorFunc,
 	}
 }
 
@@ -52,10 +54,11 @@ func orchestratorRuntime(
 ) tmpl.RuntimeFuncs {
 	tr := &toolResolver{ctx: ictx, tools: tools, sets: sets, cache: map[string]adktool.Tool{}}
 	return tmpl.RuntimeFuncs{
-		"prompt": promptHelper(ictx, selfName, llm),
-		"tool":   toolHelper(ictx, selfName, tr),
-		"agent":  agentHelper(ictx, selfName, subs),
-		"skill":  skillDispatch(ictx, selfName, sk),
+		"prompt":     promptHelper(ictx, selfName, llm),
+		"tool":       toolHelper(ictx, selfName, tr),
+		"agent":      agentHelper(ictx, selfName, subs),
+		"skill":      skillDispatch(ictx, selfName, sk),
+		"exit_error": tmpl.ExitErrorFunc,
 	}
 }
 

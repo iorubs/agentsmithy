@@ -19,9 +19,9 @@ func TestNew_ProvidersResolve(t *testing.T) {
 	}{
 		{config.ProviderOpenAI, config.ModelEntry{Model: "gpt-4o-mini"}, ""},
 		{config.ProviderBorrowed, config.ModelEntry{MaxTokens: &maxTokens}, ""},
+		{config.ProviderBedrock, config.ModelEntry{Model: "anthropic.claude-3-5-sonnet-20241022-v2:0"}, ""},
 		{config.ProviderAnthropic, config.ModelEntry{Model: "x"}, "not implemented yet"},
 		{config.ProviderGoogle, config.ModelEntry{Model: "x"}, "not implemented yet"},
-		{config.ProviderBedrock, config.ModelEntry{Model: "x"}, "not implemented yet"},
 		{config.ProviderVertex, config.ModelEntry{Model: "x"}, "not implemented yet"},
 	}
 	for _, tt := range tests {

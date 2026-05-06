@@ -11,7 +11,7 @@ package tmpl
 
 import (
 	"bytes"
-	"fmt"
+	"maps"
 	"strings"
 	"text/template"
 )
@@ -21,21 +21,22 @@ import (
 // accepts references to known helpers.
 func ParseFuncs() template.FuncMap {
 	return template.FuncMap{
-		"tool":     func(string, ...any) (string, error) { return "", nil },
-		"agent":    func(string, ...any) (string, error) { return "", nil },
-		"skill":    func(string, ...any) (any, error) { return nil, nil },
-		"prompt":   func(string, ...any) (string, error) { return "", nil },
-		"coalesce": coalesceFunc,
-		"dict":     dictFunc,
-		"list":     listFunc,
-		"contains": strings.Contains,
-		"trim":     strings.TrimSpace,
-		"lower":    strings.ToLower,
-		"upper":    strings.ToUpper,
-		"replace":  replaceFunc,
-		"split":    splitFunc,
-		"join":     joinFunc,
-		"fromJSON": fromJSONFunc,
+		"tool":       func(string, ...any) (string, error) { return "", nil },
+		"agent":      func(string, ...any) (string, error) { return "", nil },
+		"skill":      func(string, ...any) (any, error) { return nil, nil },
+		"prompt":     func(string, ...any) (string, error) { return "", nil },
+		"exit_error": func(string) (string, error) { return "", nil },
+		"coalesce":   coalesceFunc,
+		"dict":       dictFunc,
+		"list":       listFunc,
+		"contains":   strings.Contains,
+		"trim":       strings.TrimSpace,
+		"lower":      strings.ToLower,
+		"upper":      strings.ToUpper,
+		"replace":    replaceFunc,
+		"split":      splitFunc,
+		"join":       joinFunc,
+		"fromJSON":   fromJSONFunc,
 	}
 }
 
@@ -48,16 +49,14 @@ type RuntimeFuncs map[string]any
 // until: predicates that only use pure helpers and comparisons).
 func Render(body string, data map[string]any, runtime RuntimeFuncs) (string, error) {
 	funcs := ParseFuncs()
-	for k, v := range runtime {
-		funcs[k] = v
-	}
+	maps.Copy(funcs, runtime)
 	t, err := template.New("render").Funcs(funcs).Parse(body)
 	if err != nil {
-		return "", fmt.Errorf("template parse: %w", err)
+		return "", err
 	}
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("template exec: %w", err)
+		return "", err
 	}
 	return buf.String(), nil
 }

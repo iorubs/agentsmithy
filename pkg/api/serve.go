@@ -6,8 +6,16 @@ import (
 
 	"github.com/iorubs/agentsmithy/internal/config"
 	"github.com/iorubs/agentsmithy/internal/pipeline"
+	"github.com/iorubs/agentsmithy/internal/pipeline/tmpl"
 	"github.com/iorubs/agentsmithy/internal/server"
 )
+
+// ExitSignal is a sentinel error returned when an agent calls
+// {{ exit_error "reason" }}. Callers use errors.As to detect it.
+type ExitSignal = tmpl.ExitSignal
+
+// ExitError is the ExitKind for error exits.
+const ExitError = tmpl.ExitError
 
 // ServeOptions controls server behaviour.
 //
@@ -22,7 +30,7 @@ import (
 type ServeOptions struct {
 	// Root is the directory the server is rooted in.
 	Root string
-	// Transport is the wire protocol; one of stdio|mcp-stdio|a2a|mcp-http.
+	// Transport is the wire protocol; one of none|stdio|mcp-stdio|a2a|mcp-http.
 	Transport string
 	// Addr is the listening address for HTTP-style transports.
 	Addr string
@@ -52,6 +60,9 @@ func Serve(ctx context.Context, cfg *config.Config, opts ServeOptions) error {
 	}
 
 	switch transport {
+	case "none":
+		_, err := server.RunOnce(ctx, p, opts.Verbose)
+		return err
 	case "stdio":
 		return server.Stdio(ctx, p, opts.Once, opts.Verbose)
 	case "mcp-stdio":

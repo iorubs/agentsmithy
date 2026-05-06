@@ -41,20 +41,20 @@ func runSubAgent(ictx agent.InvocationContext, sub agent.Agent, input string) (s
 		MemoryService:   memory.InMemoryService(),
 	})
 	if err != nil {
-		return "", fmt.Errorf("agent %q: runner: %w", sub.Name(), err)
+		return "", fmt.Errorf("runner: %w", err)
 	}
 	sess, err := svc.Create(ictx, &session.CreateRequest{
 		AppName: sub.Name(),
 		UserID:  ictx.Session().UserID(),
 	})
 	if err != nil {
-		return "", fmt.Errorf("agent %q: create session: %w", sub.Name(), err)
+		return "", fmt.Errorf("create session: %w", err)
 	}
 	msg := genai.NewContentFromText(input, genai.RoleUser)
 	var last *session.Event
 	for ev, err := range r.Run(ictx, sess.Session.UserID(), sess.Session.ID(), msg, agent.RunConfig{}) {
 		if err != nil {
-			return "", fmt.Errorf("agent %q: %w", sub.Name(), err)
+			return "", err
 		}
 		if ev != nil && ev.Content != nil {
 			last = ev

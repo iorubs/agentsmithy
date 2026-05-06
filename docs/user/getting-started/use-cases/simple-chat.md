@@ -69,7 +69,7 @@ Then use a prompt like:
 
 > Set up a single autonomous agent that runs locally against
 > Ollama. Give it the `docs` MCP server I'm running on
-> `localhost:8080/sse`. Allow `go test ./...` as a shell skill so it
+> `localhost:8080/`. Allow `go test ./...` as a shell skill so it
 > can verify changes. Stdio transport — I want to chat with it from
 > the terminal.
 

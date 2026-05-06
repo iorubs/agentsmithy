@@ -18,7 +18,7 @@ import (
 //   - mcp-http: same MCP surface over streamable HTTP.
 type ServeCmd struct {
 	ConfigFlag
-	Transport string `help:"Transport to use (one of: ${enum})." enum:"a2a,stdio,mcp-stdio,mcp-http" default:"a2a"`
+	Transport string `help:"Transport to use (one of: ${enum})." enum:"a2a,stdio,mcp-stdio,mcp-http,none" default:"a2a"`
 	Addr      string `help:"Listen address (HTTP-like transports)." default:":8080"`
 	Watch     bool   `help:"Watch config file and hot-reload on change." default:"false"`
 	Once      string `help:"(stdio only) Send a single prompt, print the reply, then exit." short:"o"`

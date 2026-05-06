@@ -25,7 +25,7 @@ func toolHelper(ictx agent.InvocationContext, selfName string, tr *toolResolver)
 	return func(name string, args ...any) (string, error) {
 		tl, err := tr.resolve(name)
 		if err != nil {
-			return "", fmt.Errorf("agent %q: %w", selfName, err)
+			return "", err
 		}
 		runner, ok := tl.(runnableTool)
 		if !ok {
@@ -33,11 +33,11 @@ func toolHelper(ictx agent.InvocationContext, selfName string, tr *toolResolver)
 		}
 		argMap, err := argsToMap(args)
 		if err != nil {
-			return "", fmt.Errorf("agent %q: tool %q: %w", selfName, name, err)
+			return "", fmt.Errorf("tool %q: %w", name, err)
 		}
 		out, err := runner.Run(newToolCtx(ictx), argMap)
 		if err != nil {
-			return "", fmt.Errorf("agent %q: tool %q: %w", selfName, name, err)
+			return "", fmt.Errorf("tool %q: %w", name, err)
 		}
 		return coerceToolOutput(out), nil
 	}
