@@ -1,6 +1,6 @@
 module github.com/iorubs/agentsmithy
 
-go 1.26.1
+go 1.26.5
 
 require (
 	github.com/a2aproject/a2a-go v0.3.15
@@ -12,7 +12,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 	golang.org/x/net v0.53.0
 	google.golang.org/adk v1.2.0
-	google.golang.org/genai v1.55.0
+	google.golang.org/genai v1.56.0
 )
 
 require (

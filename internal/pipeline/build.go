@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/iorubs/agentsmithy/internal/config"
@@ -98,7 +99,10 @@ func resolveModel(cfg *config.Config, node kinds.Node, ancestors []kinds.Node, n
 	if !ok {
 		return nil, fmt.Errorf("agent %q: model %s.%s not in catalog", name, ref.Provider, ref.Name)
 	}
-	llm, err := models.New(*ref, entry)
+
+	ctx := context.Background()
+
+	llm, err := models.New(ctx, *ref, entry)
 	if err != nil {
 		return nil, fmt.Errorf("agent %q: %w", name, err)
 	}

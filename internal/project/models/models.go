@@ -12,6 +12,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/iorubs/agentsmithy/internal/config"
@@ -26,14 +27,14 @@ type LLM = adkmodel.LLM
 // New builds an LLM for the model entry referenced by ref. It is
 // the single entry point the runtime uses; the provider files in
 // this package supply the per-kind constructors.
-func New(ref config.ModelRef, entry config.ModelEntry) (LLM, error) {
+func New(ctx context.Context, ref config.ModelRef, entry config.ModelEntry) (LLM, error) {
 	switch ref.Provider {
 	case config.ProviderOpenAI:
 		return newOpenAI(entry)
 	case config.ProviderAnthropic:
 		return newAnthropic(entry)
 	case config.ProviderGoogle:
-		return newGoogle(entry)
+		return newGoogle(ctx, entry)
 	case config.ProviderBedrock:
 		return newBedrock(entry)
 	case config.ProviderVertex:
