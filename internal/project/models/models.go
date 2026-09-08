@@ -17,6 +17,7 @@ import (
 
 	"github.com/iorubs/agentsmithy/internal/config"
 	adkmodel "google.golang.org/adk/model"
+	"google.golang.org/genai"
 )
 
 // LLM is the agent-side interface providers must satisfy. It is
@@ -38,10 +39,25 @@ func New(ctx context.Context, ref config.ModelRef, entry config.ModelEntry) (LLM
 	case config.ProviderBedrock:
 		return newBedrock(entry)
 	case config.ProviderVertex:
-		return newVertex(entry)
+		return newVertex(ctx, entry)
 	case config.ProviderBorrowed:
 		return newBorrowed(entry)
 	default:
 		return nil, fmt.Errorf("unknown provider %q", ref.Provider)
 	}
+}
+
+// systemText flattens the request's system instruction, for providers
+// that carry the system prompt outside the message list.
+func systemText(cfg *genai.GenerateContentConfig) string {
+	if cfg == nil || cfg.SystemInstruction == nil {
+		return ""
+	}
+	var out string
+	for _, p := range cfg.SystemInstruction.Parts {
+		if p != nil && p.Text != "" {
+			out += p.Text
+		}
+	}
+	return out
 }

@@ -1,0 +1,236 @@
+version: "1"
+
+project:
+  name: "AgentSmithy"
+  description: "Config-driven AI agent server in Go. Reads .agentsmithy.yaml and serves a fully functional agent over a2a, stdio, or MCP."
+  sources:
+    local:
+      internal:
+        paths: ["internal/**/*.go"]
+        description: "All internal packages — config, pipeline, providers, transports, tools"
+      agentsmithy:
+        paths: ["cmd/agentsmithy/**/*.go", "pkg/**/*.go"]
+        description: "Binary entry point plus the embeddable CLI (pkg/cmd) and public Go API (pkg/api)"
+      gen-docs:
+        paths: ["cmd/gen-docs/**/*.go", "cmd/gen-docs/templates/**"]
+        description: "Documentation generator — renders config and CLI reference from struct tags and the Kong command tree"
+      tests:
+        paths: ["internal/**/*_test.go"]
+        description: "Stdlib table-driven unit tests"
+      config:
+        paths: ["go.mod", "go.sum", "Dockerfile", "Makefile", ".agentsmithy.yaml", ".vscode/mcp.json"]
+        description: "Build, container, and tooling config"
+      developer-docs:
+        paths: ["docs/development/**/*.md"]
+        description: "Developer docs (architecture, cli, config schema, testing, security)"
+      user-docs:
+        paths: ["docs/user/**/*.md", "README.md"]
+        description: "User docs (overview, getting-started, config and server reference, roadmap)"
+
+conventions:
+  code-style:
+    scope: "**/*.go"
+    docs:
+      - source: developer-docs
+        paths:
+          - docs/development/README.md
+          - docs/development/testing.md
+    description: |
+      This project has coding conventions (naming, comments, dependencies,
+      logging, error messages) and testing conventions (table-driven tests,
+      stdlib only, coverage).
+      Read the docs before writing or modifying code — follow what's there,
+      don't invent new patterns.
+      Never add redundant comments. Design docs and code must stay in sync —
+      update docs when you change behaviour.
+
+  documentation:
+    scope: "*"
+    docs:
+      - source: developer-docs
+      - source: user-docs
+      - source: gen-docs
+    description: |
+      Documentation lives in three layers with distinct audiences:
+      - docs/user/ (+ README.md) — end users: install, configure, use.
+        Never reference internals (package paths, struct names, etc.).
+      - docs/development/ — contributors: architecture, design decisions,
+        schema specs, extension guides. This is where specifications live.
+      - Code comments: only what the reader cannot get from the code.
+      docs/user/reference/config/ and docs/user/reference/server/ are
+      GENERATED. Never hand-edit them — change the source (struct doc
+      comments and agentsmithy tags in internal/config/v1/types.go, or the
+      Kong command structs in pkg/cmd) and run `go run ./cmd/gen-docs`.
+      Don't duplicate across layers. When writing or reviewing docs, ask
+      "who is the reader?" and put the content in the right place.
+
+  config-schema:
+    scope: "internal/config/**"
+    docs:
+      - source: developer-docs
+        paths:
+          - docs/development/config.md
+    description: |
+      Versioned YAML config with strict parsing — unknown keys are errors.
+
+      On startup the loader reads .agentsmithy.yaml, checks the version
+      field, and hands off to the matching versioned parser (internal/config/v1).
+      That parser strict-decodes, then calls schema.Process, which applies
+      tag-driven defaults and validates required fields, enum values, oneof
+      groups, min bounds, and ref constraints. Downstream code only ever
+      sees the type aliases in config.go — it never imports a versioned
+      package directly.
+
+      The agentsmithy struct tag is the single source of truth for defaults,
+      required checks, and generated reference docs. Named string types opt
+      into extra behaviour through small interfaces in schema/core.go:
+      Valuer (enums), Validate (semantic checks), RefKey (ref= on a derived
+      key, used by ToolRef for `server.tool`).
+
+      TestDocsComplete fails the build if any new struct, field, or enum
+      value reachable from Config lacks a Go doc comment.
+
+      See config.md for how to add a new field, function, or version.
+    relations:
+      - target: providers
+        description: "Provider enum and the model catalog are declared here"
+      - target: pipeline
+        description: "Config declares the pipeline, tool catalog, and skills"
+
+  providers:
+    scope: "internal/project/models/**"
+    docs:
+      - source: developer-docs
+        paths:
+          - docs/development/architecture.md
+    description: |
+      Model providers. One file per provider kind; models.New switches on
+      config.Provider and returns an adk model.LLM the runtime hands to
+      llmagent.New. This package owns the full client/wire — providers
+      construct their own SDK or HTTP clients.
+
+      Every provider implements GenerateContent(ctx, *LLMRequest, stream)
+      and converts between genai.Content and its own wire format:
+      Part.Text, Part.FunctionCall, and Part.FunctionResponse are the three
+      cases each conversion must handle. Shared helpers live in schema.go
+      (jsonSchemaFor, normalizeSchemaTypes) and models.go (systemText) —
+      reuse them rather than re-deriving per provider.
+
+      Streaming is not implemented anywhere; every provider ignores the
+      stream flag and yields once.
+
+      To add a provider: add the const and Values() entry plus a Models
+      field and the ModelRef ref= path in internal/config/v1/types.go, add
+      the file here, and add the case to New.
+    relations:
+      - target: config-schema
+        description: "Provider enum and ModelEntry fields live in the config schema"
+
+  pipeline:
+    scope: "internal/pipeline/**"
+    docs:
+      - source: developer-docs
+        paths:
+          - docs/development/security.md
+    description: |
+      Pipeline compilation and execution. build.go lowers the config tree
+      into ADK agents: it resolves the model, the tool catalog references,
+      the skills, and the inherits: chain, then hands a kinds.Deps to the
+      matching kind (autonomous, sequential, parallel, loop, orchestrator).
+
+      Tool refs are grouped by catalog name, so `server.a` and `server.b`
+      produce one toolset limited to those tools. MCP toolsets connect
+      lazily and expand at LLM time; keeping their allowlists tight is what
+      keeps tool schemas out of the model request.
+
+      Read security.md before changing the shell, file, or web skills —
+      sandbox and URL allowlist rules live there.
+    relations:
+      - target: config-schema
+        description: "The pipeline shape and tool catalog come from config"
+      - target: providers
+        description: "build.go resolves ModelRefs through models.New"
+
+  transports:
+    scope: "internal/server/**"
+    docs:
+      - source: developer-docs
+        paths:
+          - docs/development/architecture.md
+    description: |
+      Wire protocols. Transport is a property of the agent, not the host:
+      a2a (JSON-RPC over HTTP, default), stdio (line REPL for dev/CI),
+      mcp-stdio (the agent exposed as an MCP tool, the path editors spawn),
+      and mcp-http (the same MCP surface over streamable HTTP).
+
+      mcp-stdio and mcp-http also back `provider: borrowed`, which
+      round-trips completions to the connecting client via
+      sampling/createMessage — those transports must advertise the sampling
+      capability when the config declares a borrowed model.
+
+      stdio transports dispatch one request at a time; HTTP transports are
+      concurrent by net/http design, so per-session state is the only
+      shared mutable surface.
+
+tools:
+  project_info:
+    description: "Returns project name, description, root path, sources overview, and all conventions. Call at the start of every session AND whenever you are unsure about project layout or rules. Re-call if context feels stale."
+    template: |
+      {{ .mcpsmithy.Project }}
+
+      tools:
+      {{ .mcpsmithy.Tools }}
+
+      Conventions:
+      {{ .mcpsmithy.Conventions }}
+
+  find_convention:
+    description: "Returns conventions for a specific file path. Call when you are about to read, create, or modify a file — conventions differ per directory. Shows matching conventions with their scope, description, docs, and relations."
+    template: "{{ conventions_for .path }}"
+    params:
+      - name: "path"
+        type: "string"
+        required: true
+        description: "File path to check conventions for"
+
+  search:
+    description: "Search sources and conventions by keyword. Returns matching conventions first (ranked by relevance), then source docs. Use when planning, exploring a topic, or deciding how to approach a task — conventions surface early so you can factor them into your plan."
+    template: "{{ search_for .query .maxResults .maxResultSize }}"
+    options:
+      maxResults: 5
+      maxResultSize: 500
+    params:
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Search terms (e.g. 'config versioning', 'model providers', 'mcp tool filtering')"
+
+  project_commands:
+    description: "Returns how to build, test, and operate in this project. Call before running any command. Follow these rules — do not improvise."
+    template: |
+      Project commands (run from {{ .mcpsmithy.Project.Root }}):
+
+      Build:        go build -o bin/agentsmithy ./cmd/agentsmithy
+      Test:         go test -cover ./internal/...
+      Lint:         go vet ./...
+      Validate:     go run ./cmd/agentsmithy validate
+      Docs Gen:     go run ./cmd/gen-docs
+      Docker build: docker build -t agentsmithy:latest .
+
+      Local model:  make ollama-up   (make ollama-down to stop)
+      MCP fixture:  make mcpsmithy-up   (make mcpsmithy-down to stop)
+
+      Docs build image:  docker build -t agentsmithy-docs:latest docs/user
+      Docs dev server:   docker run --rm -it -p 3000:3000 -v $(pwd)/docs/user:/docs agentsmithy-docs:latest
+
+      Rules:
+      - Always run tests with -cover. Check that coverage does not regress.
+      - When writing new code, write tests alongside it — not after.
+      - Run `go run ./cmd/gen-docs` after any change to internal/config/v1/types.go
+        or the Kong command structs in pkg/cmd. Never hand-edit generated docs.
+      - Never redirect to /tmp or temp files.
+      - Do not use sed for file edits — use your edit tools instead.
+      - Do not use find -exec with shell expansion — use simple globs or grep.
+      - Prefer go test flags over shell wrappers (e.g. -run, -count, -race).
+      - All output goes to stdout. Do not tee, redirect, or swallow output.
+      - If a command fails, show the error — do not retry silently.

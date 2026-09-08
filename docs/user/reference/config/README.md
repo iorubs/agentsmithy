@@ -313,7 +313,8 @@ The `tools` key is the **catalog** of every tool the pipeline can
 reach. It is split into two maps by transport:
 
 - `mcp:` for MCP servers reached over Streamable HTTP. Each entry
-  is a named endpoint that exposes one or more tools.
+  names a `url:` and, optionally, the `tools:` from that server the
+  pipeline may see.
 - `a2a:` for agentsmithy-or-A2A-compatible services reached over
   HTTP. Each entry is another agent the pipeline can invoke as a
   tool.
@@ -368,6 +369,33 @@ sharing the same endpoint either way.
 Every catalog entry shows up in the agent's tool list and competes
 for attention from the LLM. Drop endpoints you're not actively
 using.
+
+### Narrow Large MCP Servers
+
+Every tool an MCP server advertises has its JSON schema resent on
+every model call. A server with dozens of tools can dominate the
+context before the agent does any work. Two knobs narrow it:
+
+- `tools:` on the catalog entry sets the ceiling for every agent:
+
+  ```yaml
+  tools:
+    mcp:
+      docs:
+        url: "http://localhost:8080"
+        tools: ["search", "fetch"]
+  ```
+
+- `server.tool` refs in an agent's `tools:` list narrow further,
+  so two agents can draw different slices of the same server:
+
+  ```yaml
+  tools: ["docs.search"]
+  ```
+
+A bare `docs` ref takes whatever the catalog entry allows. A
+`server.tool` ref outside the catalog's `tools:` list is a config
+error. Omitting `tools:` everywhere exposes the whole server.
 
 
 #### MCP toolset (paired mcpsmithy server)

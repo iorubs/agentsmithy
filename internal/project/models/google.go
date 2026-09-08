@@ -58,6 +58,13 @@ func (m *googleLLM) GenerateContent(
 		if req.Config == nil {
 			req.Config = &genai.GenerateContentConfig{}
 		}
+		if req.Config.Temperature == nil && m.entry.Temperature != nil {
+			t := float32(*m.entry.Temperature)
+			req.Config.Temperature = &t
+		}
+		if req.Config.MaxOutputTokens == 0 && m.entry.MaxTokens != nil {
+			req.Config.MaxOutputTokens = int32(*m.entry.MaxTokens)
+		}
 
 		resp, err := m.client.Models.GenerateContent(ctx, m.entry.Model, req.Contents, req.Config)
 		if err != nil {
