@@ -68,16 +68,8 @@ func (m *openaiLLM) GenerateContent(
 		msgs := contentsToOAI(req.Contents)
 		tools := toolsFromConfig(req.Config)
 
-		if req.Config != nil && req.Config.SystemInstruction != nil {
-			var sysText string
-			for _, p := range req.Config.SystemInstruction.Parts {
-				if p != nil && p.Text != "" {
-					sysText += p.Text
-				}
-			}
-			if sysText != "" {
-				msgs = append([]oaiMessage{{Role: "system", Content: sysText}}, msgs...)
-			}
+		if sysText := systemText(req.Config); sysText != "" {
+			msgs = append([]oaiMessage{{Role: "system", Content: sysText}}, msgs...)
 		}
 
 		// Some servers reject conversations that contain no user turn.
@@ -93,10 +85,12 @@ func (m *openaiLLM) GenerateContent(
 		}
 
 		body, err := json.Marshal(oaiRequest{
-			Model:    m.entry.Model,
-			Messages: msgs,
-			Tools:    tools,
-			Stream:   false,
+			Model:       m.entry.Model,
+			Messages:    msgs,
+			Tools:       tools,
+			Temperature: m.entry.Temperature,
+			MaxTokens:   m.entry.MaxTokens,
+			Stream:      false,
 		})
 		if err != nil {
 			yield(nil, fmt.Errorf("openai: marshal request: %w", err))
@@ -177,10 +171,12 @@ type oaiFunctionDef struct {
 }
 
 type oaiRequest struct {
-	Model    string       `json:"model"`
-	Messages []oaiMessage `json:"messages"`
-	Tools    []oaiTool    `json:"tools,omitempty"`
-	Stream   bool         `json:"stream"`
+	Model       string       `json:"model"`
+	Messages    []oaiMessage `json:"messages"`
+	Tools       []oaiTool    `json:"tools,omitempty"`
+	Temperature *float64     `json:"temperature,omitempty"`
+	MaxTokens   *int         `json:"max_tokens,omitempty"`
+	Stream      bool         `json:"stream"`
 }
 
 type oaiResponse struct {

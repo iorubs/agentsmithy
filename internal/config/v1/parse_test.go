@@ -29,7 +29,8 @@ project:
         maxTokens: 2048
 tools:
   mcp:
-    docs: "http://localhost:8080/"
+    docs:
+      url: "http://localhost:8080/"
   a2a:
     reviewer: "http://localhost:9090/"
 pipeline:
@@ -57,13 +58,13 @@ pipeline:
 					},
 				},
 				Tools: Tools{
-					MCP: map[string]string{"docs": "http://localhost:8080/"},
+					MCP: map[string]MCPServer{"docs": {URL: "http://localhost:8080/"}},
 					A2A: map[string]string{"reviewer": "http://localhost:9090/"},
 				},
 				Pipeline: Pipeline{
 					Autonomous: &Autonomous{
 						Model: &ModelRef{Provider: ProviderOpenAI, Name: "default"},
-						Tools: []string{"docs", "reviewer"},
+						Tools: []ToolRef{"docs", "reviewer"},
 						Skills: Skills{
 							Guards: []Guard{GuardRequireToolCall},
 						},
@@ -510,6 +511,129 @@ pipeline:
 			wantErr: `function "bogus" not defined`,
 		},
 		{
+			name: "mcp entry rejects unknown key",
+			yaml: `version: "1"
+project:
+  name: x
+  instruction: i
+  models:
+    openai:
+      default: { model: m }
+tools:
+  mcp:
+    docs: { url: http://localhost:7000, exclude: [a] }
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+`,
+			wantErr: "field exclude not found",
+		},
+		{
+			name: "mcp entry requires url",
+			yaml: `version: "1"
+project:
+  name: x
+  instruction: i
+  models:
+    openai:
+      default: { model: m }
+tools:
+  mcp:
+    docs: { tools: [search] }
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+`,
+			wantErr: "tools.mcp[docs].url is required",
+		},
+		{
+			name: "qualified tool ref resolves against the server name",
+			yaml: `version: "1"
+project:
+  name: x
+  instruction: i
+  models:
+    openai:
+      default: { model: m }
+tools:
+  mcp:
+    docs:
+      url: http://localhost:7000
+      tools: [search, fetch]
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+    tools: [docs.search]
+`,
+		},
+		{
+			name: "qualified tool ref outside the catalog tools list",
+			yaml: `version: "1"
+project:
+  name: x
+  instruction: i
+  models:
+    openai:
+      default: { model: m }
+tools:
+  mcp:
+    docs:
+      url: http://localhost:7000
+      tools: [search]
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+    tools: [docs.write]
+`,
+			wantErr: `"write" is not in the catalog tools list`,
+		},
+		{
+			name: "qualified sub-agent tool ref outside the catalog tools list",
+			yaml: `version: "1"
+project:
+  name: x
+  instruction: i
+  models:
+    openai:
+      default: { model: m }
+tools:
+  mcp:
+    docs:
+      url: http://localhost:7000
+      tools: [search]
+pipeline:
+  sequential:
+    model: { provider: openai, name: default }
+    subagents:
+      - name: child
+        autonomous:
+          instruction: i
+          tools: [docs.write]
+    output: "{{ .input }}"
+`,
+			wantErr: `agent "child"`,
+		},
+		{
+			name: "qualified tool ref with unknown server",
+			yaml: `version: "1"
+project:
+  name: x
+  instruction: i
+  models:
+    openai:
+      default: { model: m }
+tools:
+  mcp:
+    docs:
+      url: http://localhost:7000
+pipeline:
+  autonomous:
+    model: { provider: openai, name: default }
+    tools: [doc.search]
+`,
+			wantErr: `"doc" does not match any declared key`,
+		},
+		{
 			name: "tool name not in catalog",
 			yaml: `version: "1"
 project:
@@ -520,7 +644,7 @@ project:
       default: { model: m }
 tools:
   mcp:
-    docs: http://localhost:7000
+    docs: { url: http://localhost:7000 }
 pipeline:
   autonomous:
     model: { provider: openai, name: default }
@@ -539,7 +663,7 @@ project:
       default: { model: m }
 tools:
   mcp:
-    docs: http://localhost:7000
+    docs: { url: http://localhost:7000 }
   a2a:
     reviewer: http://localhost:7100
 pipeline:

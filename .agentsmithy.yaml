@@ -8,7 +8,7 @@ project:
   models:
     openai:
       default:
-        model: "qwen2.5:7b-instruct"
+        model: "qwen3:8b"
         baseUrl: "http://localhost:11434/v1"
 
 pipeline:

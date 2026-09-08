@@ -2,8 +2,10 @@
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"text/template"
 )
@@ -22,6 +24,57 @@ type Config struct {
 	Tools Tools `yaml:"tools,omitempty"`
 	// The pipeline that runs when this service is invoked.
 	Pipeline Pipeline `yaml:"pipeline" agentsmithy:"required"`
+}
+
+// Validate checks qualified tool refs (`server.tool`) against the named
+// server's catalog tools list. The ref= tag only reaches the catalog name,
+// so the tool half is checked here.
+func (c Config) Validate() error {
+	var errs []error
+	var walk func(agent string, tools []ToolRef, subs []SubAgent)
+	walk = func(agent string, tools []ToolRef, subs []SubAgent) {
+		for _, ref := range tools {
+			tool := ref.Tool()
+			if tool == "" {
+				continue
+			}
+			key := ref.RefKey()
+			if srv, ok := c.Tools.MCP[key]; ok {
+				if len(srv.Tools) > 0 && !slices.Contains(srv.Tools, tool) {
+					errs = append(errs, fmt.Errorf("agent %q: tool %q: %q is not in the catalog tools list %v",
+						agent, ref, tool, srv.Tools))
+				}
+			} else if _, ok := c.Tools.A2A[key]; ok {
+				errs = append(errs, fmt.Errorf("agent %q: tool %q: only mcp entries expose named tools", agent, ref))
+			}
+		}
+		for _, sa := range subs {
+			t, s := kindTools(sa.Autonomous, sa.Sequential, sa.Parallel, sa.Loop, sa.Orchestrator)
+			walk(sa.Name, t, s)
+		}
+	}
+	p := c.Pipeline
+	t, subs := kindTools(p.Autonomous, p.Sequential, p.Parallel, p.Loop, p.Orchestrator)
+	walk(c.Project.Name, t, subs)
+	return errors.Join(errs...)
+}
+
+// kindTools returns the tool refs and sub-agents of whichever kind block
+// is set. The oneof=kind tag guarantees at most one is non-nil.
+func kindTools(a *Autonomous, s *Sequential, p *Parallel, l *Loop, o *Orchestrator) ([]ToolRef, []SubAgent) {
+	switch {
+	case a != nil:
+		return a.Tools, a.Subagents
+	case s != nil:
+		return s.Tools, s.Subagents
+	case p != nil:
+		return p.Tools, p.Subagents
+	case l != nil:
+		return l.Tools, l.Subagents
+	case o != nil:
+		return o.Tools, o.Subagents
+	}
+	return nil, nil
 }
 
 // Project declares top-level identity for the service: the service name, the root system prompt, and the model catalog the pipeline draws from.
@@ -63,13 +116,18 @@ type ModelEntry struct {
 	// Override the provider endpoint. Required for OpenAI-compatible servers (LM Studio, vLLM); optional for the native provider.
 	BaseURL string `yaml:"baseUrl,omitempty"`
 	// Name of the environment variable holding the API key for this model.
-	// Defaults to the provider's conventional variable when unset (OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, AWS_ACCESS_KEY_ID, GOOGLE_APPLICATION_CREDENTIALS).
-	// Ignored by the borrowed provider (the connecting MCP client owns auth).
+	// Defaults to the provider's conventional variable when unset (OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY).
+	// On vertex it opts into express-mode key auth instead of application default credentials; unset means ADC.
+	// Ignored by the bedrock provider (the AWS credential chain owns auth) and by borrowed (the connecting MCP client owns auth).
 	APIKeyEnv string `yaml:"apiKeyEnv,omitempty"`
 	// Sampling temperature passed through to the provider.
 	Temperature *float64 `yaml:"temperature,omitempty"`
 	// Maximum response tokens. Provider-defined when unset.
 	MaxTokens *int `yaml:"maxTokens,omitempty" agentsmithy:"min=1"`
+	// AWS region for the bedrock provider. Falls back to AWS_REGION, then the shared AWS config.
+	Region string `yaml:"region,omitempty"`
+	// Named AWS shared-config profile for the bedrock provider. Falls back to the default credential chain.
+	Profile string `yaml:"profile,omitempty"`
 }
 
 // ModelRef points at a model entry in the catalog. Both fields together identify exactly one entry: `models.<provider>.<name>`.
@@ -112,14 +170,41 @@ func (Provider) Values() []string {
 	}
 }
 
-// Tools is the tool catalog. Tools listed here can be referenced by pipeline and sub-agent `tools:` lists by name.
+// Tools is the tool catalog. Entries listed here can be referenced by pipeline and sub-agent `tools:` lists by name.
 // Categories (mcp, a2a) reflect how the tool is reached at runtime.
-// Each entry maps the named mcp/agents to the endpoint that serves it.
 type Tools struct {
-	// MCP tools. Each value is the streamable HTTP endpoint of one MCP server (e.g. "http://localhost:8080").
-	MCP map[string]string `yaml:"mcp,omitempty"`
+	// MCP servers, keyed by catalog name.
+	MCP map[string]MCPServer `yaml:"mcp,omitempty"`
 	// Agent-to-agent endpoints. Each value is the base URL of another agentsmithy or A2A-compatible service the pipeline can call as a tool.
 	A2A map[string]string `yaml:"a2a,omitempty"`
+}
+
+// MCPServer is one MCP server in the catalog, plus the subset of its tools agents may see.
+type MCPServer struct {
+	// Streamable HTTP endpoint of the MCP server (e.g. "http://localhost:8080").
+	URL string `yaml:"url" agentsmithy:"required"`
+	// Tool names to expose from this server. Empty exposes every tool the
+	// server advertises; naming a subset keeps unused tool schemas out of
+	// the model request. Agents narrow this further with `server.tool` refs.
+	Tools []string `yaml:"tools,omitempty"`
+}
+
+// ToolRef names an entry in the tool catalog. `name` selects every tool the
+// catalog entry exposes; `name.tool` selects one tool from an MCP server.
+type ToolRef string
+
+// RefKey returns the catalog name, dropping any `.tool` suffix. It is what the
+// ref= tag validates against.
+func (t ToolRef) RefKey() string {
+	name, _, _ := strings.Cut(string(t), ".")
+	return name
+}
+
+// Tool returns the tool name selected from the catalog entry, or "" when the
+// ref selects the whole entry.
+func (t ToolRef) Tool() string {
+	_, tool, _ := strings.Cut(string(t), ".")
+	return tool
 }
 
 // Pipeline is the root agent. Exactly one kind block must be set;
@@ -199,7 +284,7 @@ type Autonomous struct {
 	// Reference into the model catalog.
 	Model *ModelRef `yaml:"model,omitempty"`
 	// Tool names from the root `tools:` catalog this agent may use.
-	Tools []string `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
+	Tools []ToolRef `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
 	// Built-in skills bound to this agent.
 	Skills Skills `yaml:"skills,omitempty"`
 	// Memory overrides (kind-aware defaults apply when unset).
@@ -223,7 +308,7 @@ type Sequential struct {
 	// Reference into the model catalog. Backs the `{{ prompt }}` helper in `output:` and is the inheritance source for descendants.
 	Model *ModelRef `yaml:"model,omitempty"`
 	// Tool names this agent's `output:` template may reference.
-	Tools []string `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
+	Tools []ToolRef `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
 	// Built-in skills bound to this agent.
 	Skills Skills `yaml:"skills,omitempty"`
 	// Memory overrides (kind-aware defaults apply when unset).
@@ -245,7 +330,7 @@ type Parallel struct {
 	// Reference into the model catalog.
 	Model *ModelRef `yaml:"model,omitempty"`
 	// Tool names this agent's `output:` template may reference.
-	Tools []string `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
+	Tools []ToolRef `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
 	// Built-in skills bound to this agent.
 	Skills Skills `yaml:"skills,omitempty"`
 	// Memory overrides (kind-aware defaults apply when unset).
@@ -266,7 +351,7 @@ type Loop struct {
 	// Reference into the model catalog.
 	Model *ModelRef `yaml:"model,omitempty"`
 	// Tool names this agent's `output:` template may reference.
-	Tools []string `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
+	Tools []ToolRef `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
 	// Built-in skills bound to this agent.
 	Skills Skills `yaml:"skills,omitempty"`
 	// Memory overrides (kind-aware defaults apply when unset).
@@ -293,7 +378,7 @@ type Orchestrator struct {
 	// Reference into the model catalog. Backs the `{{ prompt }}` helper inside `steps[].run` and `output:`.
 	Model *ModelRef `yaml:"model,omitempty"`
 	// Tool names this orchestrator may call from `steps[].run` and `output:`.
-	Tools []string `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
+	Tools []ToolRef `yaml:"tools,omitempty" agentsmithy:"ref=tools.mcp|tools.a2a"`
 	// Built-in skills bound to this agent.
 	Skills Skills `yaml:"skills,omitempty"`
 	// Memory overrides (kind-aware defaults apply when unset).

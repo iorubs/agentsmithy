@@ -1,0 +1,32 @@
+version: "1"
+
+project:
+  name: "AgentSmithyMCP"
+  instruction: |
+    You are AgentSmithy, working on the agentsmithy repository itself.
+    Use project_info to learn the layout and conventions, and search to
+    find where something lives before answering.
+  models:
+    openai:
+      default:
+        model: "qwen3:8b"
+        baseUrl: "http://localhost:11434/v1"
+
+tools:
+  mcp:
+    mcpsmithy:
+      url: "http://localhost:8090"
+      tools:
+        - project_info
+        - find_convention
+        - search
+        - project_commands
+
+pipeline:
+  autonomous:
+    model:
+      provider: openai
+      name: default
+    tools:
+      - mcpsmithy.project_info
+      - mcpsmithy.search

@@ -33,3 +33,6 @@ go.work.sum
 
 .DS_Store
 /agentsmithy
+
+# scratch workspace for .agentsmithy-local.yaml's file skill
+/.agent-workspace/
