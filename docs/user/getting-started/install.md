@@ -17,6 +17,50 @@ Download `agentsmithy-<os>-<arch>` from the
 go install github.com/iorubs/agentsmithy/cmd/agentsmithy@latest
 ```
 
+### Connect your agent
+
+Optionally, move the binary to a directory in your `PATH`.
+
+**VS Code**; add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "agentsmithy": {
+      "command": "agentsmithy",
+      "args": ["serve", "--transport", "mcp-stdio"]
+    }
+  }
+}
+```
+
+<!-- TODO: add binary connection examples for Claude Desktop, Cursor, GitHub Copilot CLI -->
+
+## Docker
+
+### Connect your agent
+
+**VS Code**; add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "agentsmithy": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "${workspaceFolder}:/project:ro",
+        "-w", "/project",
+        "smithylabs/agentsmithy:latest",
+        "serve", "--transport", "mcp-stdio"
+      ]
+    }
+  }
+}
+```
+
+<!-- TODO: add Docker connection examples for Claude Desktop, Cursor, GitHub Copilot CLI -->
+
 ## Next steps
 
 Next you'll need a `.agentsmithy.yaml` config. See the

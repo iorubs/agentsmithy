@@ -1,6 +1,7 @@
 package kinds
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 // the matching constructor.
 func TestNew_DispatchesByKind(t *testing.T) {
 	llm, err := models.New(
+		context.Background(),
 		v1.ModelRef{Provider: v1.ProviderOpenAI, Name: "default"},
 		v1.ModelEntry{Model: "gpt-4o-mini"},
 	)
