@@ -13,6 +13,7 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	v1 "github.com/iorubs/agentsmithy/internal/config/v1"
 	"github.com/iorubs/agentsmithy/internal/pipeline/skills/sandbox"
+	adkagent "google.golang.org/adk/agent"
 	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
 )
@@ -57,7 +58,7 @@ func buildFile(projectRoot string, fk v1.FileSkill) ([]adktool.Tool, map[string]
 				},
 				Required: []string{"path"},
 			},
-		}, func(_ adktool.Context, in map[string]any) (fileReadResult, error) {
+		}, func(_ adkagent.ToolContext, in map[string]any) (fileReadResult, error) {
 			p, _ := in["path"].(string)
 			b, err := readFile(sb, readPaths, p)
 			if err != nil {
@@ -93,7 +94,7 @@ func buildFile(projectRoot string, fk v1.FileSkill) ([]adktool.Tool, map[string]
 					"dir": {Type: "string", Description: "Directory relative to working directory. Empty means root."},
 				},
 			},
-		}, func(_ adktool.Context, in map[string]any) (fileListResult, error) {
+		}, func(_ adkagent.ToolContext, in map[string]any) (fileListResult, error) {
 			dir, _ := in["dir"].(string)
 			paths, err := listDir(sb, readPaths, dir)
 			if err != nil {
@@ -125,7 +126,7 @@ func buildFile(projectRoot string, fk v1.FileSkill) ([]adktool.Tool, map[string]
 				},
 				Required: []string{"pattern"},
 			},
-		}, func(_ adktool.Context, in map[string]any) (fileListResult, error) {
+		}, func(_ adkagent.ToolContext, in map[string]any) (fileListResult, error) {
 			pat, _ := in["pattern"].(string)
 			matches, err := sandbox.Glob(sb.FS(), pat)
 			if err != nil {
@@ -167,7 +168,7 @@ func buildFile(projectRoot string, fk v1.FileSkill) ([]adktool.Tool, map[string]
 				},
 				Required: []string{"path", "content"},
 			},
-		}, func(_ adktool.Context, in map[string]any) (fileWriteResult, error) {
+		}, func(_ adkagent.ToolContext, in map[string]any) (fileWriteResult, error) {
 			p, _ := in["path"].(string)
 			c, _ := in["content"].(string)
 			abs, err := writeFile(sb, writePaths, p, []byte(c))
@@ -207,7 +208,7 @@ func buildFile(projectRoot string, fk v1.FileSkill) ([]adktool.Tool, map[string]
 				},
 				Required: []string{"path", "old", "new"},
 			},
-		}, func(_ adktool.Context, in map[string]any) (fileWriteResult, error) {
+		}, func(_ adkagent.ToolContext, in map[string]any) (fileWriteResult, error) {
 			p, _ := in["path"].(string)
 			oldS, _ := in["old"].(string)
 			newS, _ := in["new"].(string)

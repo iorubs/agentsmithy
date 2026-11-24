@@ -131,7 +131,9 @@ func TestBorrowed_GenerateContent_Roundtrip(t *testing.T) {
 
 	clientT, serverT := mcp.NewInMemoryTransports()
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "test-server"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "test-server"}, &mcp.ServerOptions{
+		SupportedProtocolVersions: SamplingProtocolVersions(),
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

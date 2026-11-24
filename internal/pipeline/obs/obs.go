@@ -38,7 +38,7 @@ func Callbacks(agentName string) (
 		slog.DebugContext(ctx, "model done", attrs...)
 		return nil, nil
 	}
-	beforeTool := func(ctx adktool.Context, t adktool.Tool, args map[string]any) (map[string]any, error) {
+	beforeTool := func(ctx adkagent.ToolContext, t adktool.Tool, args map[string]any) (map[string]any, error) {
 		slog.DebugContext(ctx, "tool call",
 			"agent", agentName,
 			"tool", t.Name(),
@@ -46,7 +46,7 @@ func Callbacks(agentName string) (
 		)
 		return nil, nil
 	}
-	afterTool := func(ctx adktool.Context, t adktool.Tool, _ map[string]any, _ map[string]any, err error) (map[string]any, error) {
+	afterTool := func(ctx adkagent.ToolContext, t adktool.Tool, _ map[string]any, _ map[string]any, err error) (map[string]any, error) {
 		attrs := []any{"agent", agentName, "tool", t.Name()}
 		if err != nil {
 			attrs = append(attrs, "error", err.Error())

@@ -34,7 +34,7 @@ Optionally, move the binary to a directory in your `PATH`.
 }
 ```
 
-<!-- TODO: add binary connection examples for Claude Desktop, Cursor, GitHub Copilot CLI -->
+{/* TODO: add binary connection examples for Claude Desktop, Cursor, GitHub Copilot CLI */}
 
 ## Docker
 
@@ -59,7 +59,7 @@ Optionally, move the binary to a directory in your `PATH`.
 }
 ```
 
-<!-- TODO: add Docker connection examples for Claude Desktop, Cursor, GitHub Copilot CLI -->
+{/* TODO: add Docker connection examples for Claude Desktop, Cursor, GitHub Copilot CLI */}
 
 ## Next steps
 

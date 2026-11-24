@@ -48,7 +48,7 @@ func toolHelper(ictx agent.InvocationContext, selfName string, tr *toolResolver)
 // against this is the only way to call a tool from outside the LLM
 // flow in ADK v1.1.0; Run is not on the public tool.Tool interface.
 type runnableTool interface {
-	Run(adktool.Context, any) (map[string]any, error)
+	Run(agent.ToolContext, any) (map[string]any, error)
 }
 
 // toolResolver caches lookups across a single template render. The

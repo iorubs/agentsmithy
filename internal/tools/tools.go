@@ -12,11 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2aclient"
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2aclient"
+	"github.com/a2aproject/a2a-go/v2/a2acompat/a2av0"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/remoteagent"
+	"google.golang.org/adk/agent/remoteagent/v2"
 	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/agenttool"
 	"google.golang.org/adk/tool/mcptoolset"
@@ -88,23 +89,26 @@ func (s *allowToolset) Tools(ctx agent.ReadonlyContext) ([]adktool.Tool, error) 
 
 // A2A builds a tool wrapping a remote A2A agent.
 func A2A(name, url string) (Resolved, error) {
+	// The configured URL is a v0.3 JSON-RPC endpoint (what agentsmithy
+	// serves at / and what most A2A peers speak today), so the static
+	// card advertises it as such and the client uses the v0.3 compat
+	// transport. v1.0 JSON-RPC stays registered for cards that offer it.
+	httpClient := &http.Client{Timeout: 5 * time.Minute}
 	card := &a2a.AgentCard{
-		Name:               name,
-		URL:                url,
-		Version:            "1.0.0",
-		ProtocolVersion:    "0.2.0",
-		PreferredTransport: a2a.TransportProtocolJSONRPC,
-		AdditionalInterfaces: []a2a.AgentInterface{
-			{Transport: a2a.TransportProtocolJSONRPC, URL: url},
+		Name:    name,
+		Version: "1.0.0",
+		SupportedInterfaces: []*a2a.AgentInterface{
+			{URL: url, ProtocolBinding: a2a.TransportProtocolJSONRPC, ProtocolVersion: a2av0.Version},
 		},
 		Capabilities: a2a.AgentCapabilities{Streaming: true},
 	}
 	remote, err := remoteagent.NewA2A(remoteagent.A2AConfig{
 		Name:      name,
 		AgentCard: card,
-		ClientFactory: a2aclient.NewFactory(
-			a2aclient.WithJSONRPCTransport(&http.Client{Timeout: 5 * time.Minute}),
-		),
+		ClientProvider: remoteagent.NewA2AClientProvider(a2aclient.NewFactory(
+			a2aclient.WithJSONRPCTransport(httpClient),
+			a2av0.WithJSONRPCTransport(a2av0.JSONRPCTransportConfig{Client: httpClient}),
+		)),
 	})
 	if err != nil {
 		return Resolved{}, fmt.Errorf("a2a %q: %w", name, err)

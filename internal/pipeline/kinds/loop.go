@@ -62,7 +62,7 @@ func newUntilChecker(loopName, body string, names []string, llm models.LLM, sk m
 				if !tmpl.IsTruthy(rendered) {
 					return
 				}
-				ev := session.NewEvent(ctx.InvocationID())
+				ev := session.NewEventWithContext(ctx, ctx.InvocationID())
 				ev.Author = checkerName
 				ev.Actions.Escalate = true
 				yield(ev, nil)

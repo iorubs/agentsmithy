@@ -9,17 +9,28 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2asrv"
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2acompat/a2av0"
+	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"github.com/iorubs/agentsmithy/internal/pipeline"
 	"google.golang.org/adk/runner"
-	"google.golang.org/adk/server/adka2a"
+	"google.golang.org/adk/server/adka2a/v2"
 	"google.golang.org/adk/session"
 )
 
+// legacyAgentCardPath is the v0.2/v0.3 well-known agent card location.
+// v1.0 clients look at [a2asrv.WellKnownAgentCardPath]; both serve the
+// same card, serialised as a union of the v0.3 and v1.0 formats.
+const legacyAgentCardPath = "/.well-known/agent.json"
+
+// v1Path is where the A2A v1.0 JSON-RPC binding is served. The v0.3
+// binding stays at / so existing clients keep working unchanged.
+const v1Path = "/a2a/v1"
+
 // A2A serves the pipeline's root agent as an A2A JSON-RPC service
 // over HTTP. Publishes an AgentCard at /.well-known/agent.json and
-// dispatches JSON-RPC requests at /. Sessions are kept in-memory.
+// /.well-known/agent-card.json, dispatches v0.3 JSON-RPC requests at /
+// and v1.0 JSON-RPC requests at /a2a/v1. Sessions are kept in-memory.
 func A2A(ctx context.Context, p *pipeline.Pipeline, addr string) error {
 	if addr == "" {
 		addr = ":8080"
@@ -48,23 +59,22 @@ func A2A(ctx context.Context, p *pipeline.Pipeline, addr string) error {
 	}
 	cardURL := fmt.Sprintf("http://%s:%s/", host, port)
 	card := &a2a.AgentCard{
-		Name:               p.Name,
-		URL:                cardURL,
-		Version:            "1.0.0",
-		ProtocolVersion:    "0.2.0",
-		PreferredTransport: a2a.TransportProtocolJSONRPC,
-		AdditionalInterfaces: []a2a.AgentInterface{
-			{Transport: a2a.TransportProtocolJSONRPC, URL: cardURL},
+		Name:    p.Name,
+		Version: "1.0.0",
+		SupportedInterfaces: []*a2a.AgentInterface{
+			// First v0.3 entry becomes the legacy `url`/`preferredTransport`.
+			{URL: cardURL, ProtocolBinding: a2a.TransportProtocolJSONRPC, ProtocolVersion: a2av0.Version},
+			{URL: cardURL + v1Path[1:], ProtocolBinding: a2a.TransportProtocolJSONRPC, ProtocolVersion: a2a.Version},
 		},
+		DefaultInputModes:  []string{"text/plain"},
+		DefaultOutputModes: []string{"text/plain"},
+		Capabilities:       a2a.AgentCapabilities{Streaming: true},
 	}
+	cardHandler := a2asrv.NewAgentCardHandler(a2av0.NewStaticAgentCardProducer(card))
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /.well-known/agent.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(card); err != nil {
-			slog.WarnContext(r.Context(), "a2a: encode agent card", "error", err)
-		}
-	})
+	mux.Handle("GET "+legacyAgentCardPath, cardHandler)
+	mux.Handle("GET "+a2asrv.WellKnownAgentCardPath, cardHandler)
 	// GET /sessions/{id}/messages: flatten ADK session events to a
 	// simple chat transcript. Used by `smithy agent chat` to recover
 	// history across CLI invocations. The a2a `tasks/list` RPC is
@@ -93,7 +103,8 @@ func A2A(ctx context.Context, p *pipeline.Pipeline, addr string) error {
 			slog.WarnContext(r.Context(), "a2a: encode messages", "error", err)
 		}
 	})
-	mux.Handle("/", a2asrv.NewJSONRPCHandler(handler))
+	mux.Handle(v1Path, a2asrv.NewJSONRPCHandler(handler))
+	mux.Handle("/", a2av0.NewJSONRPCHandler(handler))
 
 	srv := &http.Server{
 		Handler:           withCtxValues(ctx, mux),
