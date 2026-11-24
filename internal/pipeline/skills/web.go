@@ -11,6 +11,7 @@ import (
 	v1 "github.com/iorubs/agentsmithy/internal/config/v1"
 	"github.com/iorubs/agentsmithy/internal/pipeline/skills/htmltext"
 	"github.com/iorubs/agentsmithy/internal/pipeline/skills/urlallow"
+	adkagent "google.golang.org/adk/agent"
 	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
 )
@@ -48,7 +49,7 @@ func buildWeb(ws v1.WebSkill) ([]adktool.Tool, map[string]Helper) {
 			},
 			Required: []string{"url"},
 		},
-	}, func(tc adktool.Context, in map[string]any) (scrapeResult, error) {
+	}, func(tc adkagent.ToolContext, in map[string]any) (scrapeResult, error) {
 		u, _ := in["url"].(string)
 		return doScrape(toolCtx(tc), allowed, u)
 	})

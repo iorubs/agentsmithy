@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -31,6 +32,22 @@ const (
 	// session, as a cheap guard against runaway loops.
 	borrowedRPMPerSession = 60
 )
+
+// mcpProtocolNoServerRequests is the first MCP protocol version
+// (SEP-2322 / SEP-2575) that forbids server-initiated requests such as
+// sampling/createMessage while a tool call is in flight.
+const mcpProtocolNoServerRequests = "2026-07-28"
+
+// SamplingProtocolVersions returns the MCP protocol versions, newest
+// first, under which the server may still issue sampling/createMessage
+// mid tool call. Servers hosting a borrowed model pass this as
+// [mcp.ServerOptions.SupportedProtocolVersions] so clients negotiate a
+// version where borrowed completions keep working.
+func SamplingProtocolVersions() []string {
+	return slices.DeleteFunc(mcp.SupportedProtocolVersions(), func(v string) bool {
+		return v >= mcpProtocolNoServerRequests
+	})
+}
 
 // borrowedCtxKey carries the connecting MCP server session. The
 // mcp-stdio transport sets it before invoking the agent so the

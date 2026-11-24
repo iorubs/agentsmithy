@@ -64,7 +64,7 @@ func newOrchestrator(o *v1.Orchestrator, deps Deps) (Agent, error) {
 					yield(errorEvent(ctx, selfName, fmt.Errorf("state set: %w", err)), err)
 					return
 				}
-				ev := session.NewEvent(ctx.InvocationID())
+				ev := session.NewEventWithContext(ctx, ctx.InvocationID())
 				ev.Author = selfName
 				ev.Content = genai.NewContentFromText(final, genai.RoleModel)
 				yield(ev, nil)
@@ -90,7 +90,7 @@ func indexTools(tools []adktool.Tool) map[string]adktool.Tool {
 }
 
 func errorEvent(ctx agent.InvocationContext, author string, err error) *session.Event {
-	ev := session.NewEvent(ctx.InvocationID())
+	ev := session.NewEventWithContext(ctx, ctx.InvocationID())
 	ev.Author = author
 	ev.ErrorMessage = err.Error()
 	return ev

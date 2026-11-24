@@ -12,6 +12,7 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	v1 "github.com/iorubs/agentsmithy/internal/config/v1"
 	"github.com/iorubs/agentsmithy/internal/pipeline/skills/sandbox"
+	adkagent "google.golang.org/adk/agent"
 	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
 )
@@ -97,7 +98,7 @@ func buildShell(projectRoot, name string, sk v1.ShellSkill) (adktool.Tool, Helpe
 		Name:        name,
 		Description: shellDescription(sk),
 		InputSchema: schema,
-	}, func(tc adktool.Context, input map[string]any) (shellResult, error) {
+	}, func(tc adkagent.ToolContext, input map[string]any) (shellResult, error) {
 		filled, err := fillDefaults(sk.Args, input)
 		if err != nil {
 			return shellResult{}, err
@@ -226,7 +227,7 @@ func fillDefaults(params []v1.Param, named map[string]any) (map[string]any, erro
 
 // toolCtx extracts the underlying context from an ADK tool.Context.
 // ADK's tool.Context embeds context.Context.
-func toolCtx(tc adktool.Context) context.Context {
+func toolCtx(tc adkagent.ToolContext) context.Context {
 	if c, ok := tc.(context.Context); ok {
 		return c
 	}

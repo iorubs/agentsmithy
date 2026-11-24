@@ -51,10 +51,16 @@ type invokeOutput struct {
 // buildMCPServer wires an *mcp.Server with one agent-invocation tool.
 // Shared between the stdio and HTTP transports.
 func buildMCPServer(p *pipeline.Pipeline, requireSampling bool) (*mcp.Server, string, error) {
+	var opts *mcp.ServerOptions
+	if requireSampling {
+		// Borrowed models round-trip through sampling/createMessage,
+		// which protocol 2026-07-28+ disallows mid tool call.
+		opts = &mcp.ServerOptions{SupportedProtocolVersions: models.SamplingProtocolVersions()}
+	}
 	srv := mcp.NewServer(&mcp.Implementation{
 		Name:    p.Name,
 		Version: "1.0.0",
-	}, nil)
+	}, opts)
 
 	r, err := runner.New(runner.Config{
 		AppName:           p.Name,
