@@ -1,0 +1,31 @@
+version: "1"
+
+project:
+  name: "AgentSmithyLocal"
+  instruction: |
+    You are AgentSmithy, a config-driven AI agent running on a
+    native local Ollama model. Help the user create, edit, and
+    delete files in your sandboxed workspace.
+  models:
+    openai:
+      default:
+        model: "qwen3:8b"
+        baseUrl: "http://localhost:11434/v1"
+
+pipeline:
+  autonomous:
+    model:
+      provider: openai
+      name: default
+    instruction: |
+      You manage files in a sandboxed workspace directory
+      (.agent-workspace). Use file_write to create files, file_edit
+      to change existing content, and file_read/file_list to
+      inspect them. After each action, confirm briefly what you did.
+    skills:
+      file:
+        workingDir: "./.agent-workspace"
+        read:
+          enabled: true
+        write:
+          enabled: true

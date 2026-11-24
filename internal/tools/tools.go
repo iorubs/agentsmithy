@@ -6,12 +6,16 @@ package tools
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/a2aproject/a2a-go/a2aclient"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/remoteagent"
 	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/agenttool"
@@ -32,7 +36,9 @@ type Resolved struct {
 // Streamable HTTP. urlOrAddr accepts either a full URL
 // (`http://host:port/`) or a bare host:port, in which case the
 // scheme defaults to http:// and the path defaults to `/`.
-func MCP(name, urlOrAddr string) (Resolved, error) {
+// A non-empty allow list limits the toolset to those tool names, so
+// the schemas of everything else never reach the model.
+func MCP(name, urlOrAddr string, allow []string) (Resolved, error) {
 	endpoint := normaliseMCPEndpoint(urlOrAddr)
 	ts, err := mcptoolset.New(mcptoolset.Config{
 		Transport: &mcp.StreamableClientTransport{Endpoint: endpoint},
@@ -40,7 +46,44 @@ func MCP(name, urlOrAddr string) (Resolved, error) {
 	if err != nil {
 		return Resolved{}, fmt.Errorf("mcp %q: %w", name, err)
 	}
+	if len(allow) > 0 {
+		ts = &allowToolset{server: name, inner: ts, allow: allow}
+	}
 	return Resolved{Name: name, Toolset: ts}, nil
+}
+
+// allowToolset limits an MCP toolset to a fixed set of tool names.
+// The connection stays lazy, so names are only checked against the
+// server on first expansion; missing ones are reported once.
+type allowToolset struct {
+	server string
+	inner  adktool.Toolset
+	allow  []string
+	warn   sync.Once
+}
+
+func (s *allowToolset) Name() string { return s.inner.Name() }
+
+func (s *allowToolset) Tools(ctx agent.ReadonlyContext) ([]adktool.Tool, error) {
+	all, err := s.inner.Tools(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []adktool.Tool
+	for _, t := range all {
+		if slices.Contains(s.allow, t.Name()) {
+			out = append(out, t)
+		}
+	}
+	if len(out) < len(s.allow) {
+		s.warn.Do(func() {
+			missing := slices.DeleteFunc(slices.Clone(s.allow), func(name string) bool {
+				return slices.ContainsFunc(out, func(t adktool.Tool) bool { return t.Name() == name })
+			})
+			slog.Warn("mcp tools not advertised by server", "server", s.server, "missing", missing)
+		})
+	}
+	return out, nil
 }
 
 // A2A builds a tool wrapping a remote A2A agent.

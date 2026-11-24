@@ -394,6 +394,53 @@ type refHolder struct {
 	EntryRef string              `yaml:"tool" agentsmithy:"ref=tools"`
 }
 
+// keyedRef derives the validated key from the part before the first dot.
+type keyedRef string
+
+func (r keyedRef) RefKey() string {
+	key, _, _ := strings.Cut(string(r), ".")
+	return key
+}
+
+// keyedRefHolder exercises the refKeyer interface on the ref= path.
+type keyedRefHolder struct {
+	Entries  map[string]refEntry `yaml:"tools"`
+	EntryRef keyedRef            `yaml:"tool" agentsmithy:"ref=tools"`
+}
+
+func TestProcess_RefKeyer(t *testing.T) {
+	tests := []struct {
+		name     string
+		val      any
+		wantErrs int
+		wantMsg  string
+	}{
+		{"whole entry", &keyedRefHolder{
+			Entries:  map[string]refEntry{"alpha": {}},
+			EntryRef: "alpha",
+		}, 0, ""},
+		{"qualified entry", &keyedRefHolder{
+			Entries:  map[string]refEntry{"alpha": {}},
+			EntryRef: "alpha.search",
+		}, 0, ""},
+		{"qualified unknown entry", &keyedRefHolder{
+			Entries:  map[string]refEntry{"alpha": {}},
+			EntryRef: "beta.search",
+		}, 1, `"beta" does not match any declared key`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := Process(tt.val)
+			if len(errs) != tt.wantErrs {
+				t.Fatalf("got %d errors; want %d: %v", len(errs), tt.wantErrs, errs)
+			}
+			if tt.wantMsg != "" && !hasMsg(errs, tt.wantMsg) {
+				t.Errorf("expected %q; got %v", tt.wantMsg, errs)
+			}
+		})
+	}
+}
+
 func TestProcess_Ref(t *testing.T) {
 	tests := []struct {
 		name     string

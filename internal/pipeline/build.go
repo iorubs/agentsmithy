@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/iorubs/agentsmithy/internal/config"
 	v1 "github.com/iorubs/agentsmithy/internal/config/v1"
@@ -271,7 +272,7 @@ func effectiveModelRef(node kinds.Node, ancestors []kinds.Node) *config.ModelRef
 // effectiveToolRefs returns the tool name list this node uses:
 // its own list if non-empty, otherwise the nearest ancestor's when
 // `tools` is listed in `inherits:`.
-func effectiveToolRefs(node kinds.Node, ancestors []kinds.Node) []string {
+func effectiveToolRefs(node kinds.Node, ancestors []kinds.Node) []v1.ToolRef {
 	if local := nodeToolRefs(node); len(local) > 0 {
 		return local
 	}
@@ -351,7 +352,7 @@ func ancestorHasField(ancestors []kinds.Node, field v1.InheritField) bool {
 
 // nodeToolRefs returns the names this node references from the
 // project tool catalog.
-func nodeToolRefs(node kinds.Node) []string {
+func nodeToolRefs(node kinds.Node) []v1.ToolRef {
 	switch {
 	case node.Autonomous != nil:
 		return node.Autonomous.Tools
@@ -372,18 +373,20 @@ func nodeToolRefs(node kinds.Node) []string {
 // toolsets by looking each name up in the project tool catalog. mcp
 // entries become toolsets, a2a entries become single tools. When
 // the local node lists `tools` in `inherits:`, the nearest ancestor's
-// tools list is used as a fallback.
+// tools list is used as a fallback. Refs are grouped by catalog name,
+// so `server.a` and `server.b` share one narrowed toolset.
 func resolveTools(cfg *config.Config, node kinds.Node, ancestors []kinds.Node, name string) ([]adktool.Tool, []adktool.Toolset, error) {
 	refs := effectiveToolRefs(node, ancestors)
 	if len(refs) == 0 {
 		return nil, nil, nil
 	}
+	order, selected := groupToolRefs(refs)
 	var (
 		out      []adktool.Tool
 		toolsets []adktool.Toolset
 	)
-	for _, ref := range refs {
-		r, err := lookupTool(&cfg.Tools, ref)
+	for _, key := range order {
+		r, err := lookupTool(&cfg.Tools, key, selected[key])
 		if err != nil {
 			return nil, nil, fmt.Errorf("agent %q: %w", name, err)
 		}
@@ -395,12 +398,36 @@ func resolveTools(cfg *config.Config, node kinds.Node, ancestors []kinds.Node, n
 	return out, toolsets, nil
 }
 
+// groupToolRefs collapses refs to one entry per catalog name, preserving
+// declaration order. The selection holds the tool halves of any
+// `server.tool` refs; empty means the catalog entry decides.
+func groupToolRefs(refs []v1.ToolRef) ([]string, map[string][]string) {
+	var order []string
+	selected := make(map[string][]string, len(refs))
+	for _, ref := range refs {
+		key := ref.RefKey()
+		if !slices.Contains(order, key) {
+			order = append(order, key)
+		}
+		if tool := ref.Tool(); tool != "" {
+			selected[key] = append(selected[key], tool)
+		}
+	}
+	return order, selected
+}
+
 // lookupTool resolves a tool name against the project catalog,
 // preferring mcp over a2a if the same name is declared in both
 // (schema currently doesn't enforce uniqueness across categories).
-func lookupTool(cat *v1.Tools, ref string) (tools.Resolved, error) {
-	if url, ok := cat.MCP[ref]; ok {
-		return tools.MCP(ref, url)
+// selected narrows an mcp entry; Config.Validate has already checked it
+// against the catalog list.
+func lookupTool(cat *v1.Tools, ref string, selected []string) (tools.Resolved, error) {
+	if srv, ok := cat.MCP[ref]; ok {
+		allow := srv.Tools
+		if len(selected) > 0 {
+			allow = selected
+		}
+		return tools.MCP(ref, srv.URL, allow)
 	}
 	if url, ok := cat.A2A[ref]; ok {
 		return tools.A2A(ref, url)

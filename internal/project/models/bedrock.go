@@ -8,7 +8,7 @@ import (
 	"iter"
 	"log/slog"
 	"os"
-	"strings"
+	"sync"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -30,20 +30,31 @@ func newBedrock(entry config.ModelEntry) (LLM, error) {
 }
 
 type bedrockLLM struct {
-	entry  config.ModelEntry
+	entry config.ModelEntry
+
+	mu     sync.Mutex
 	client *bedrockruntime.Client
 }
 
 func (m *bedrockLLM) Name() string { return m.entry.Model }
 
 func (m *bedrockLLM) getClient(ctx context.Context) (*bedrockruntime.Client, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.client != nil {
 		return m.client, nil
 	}
 
 	var opts []func(*awsconfig.LoadOptions) error
-	if region := os.Getenv(defaultBedrockRegionEnv); region != "" {
+	region := m.entry.Region
+	if region == "" {
+		region = os.Getenv(defaultBedrockRegionEnv)
+	}
+	if region != "" {
 		opts = append(opts, awsconfig.WithRegion(region))
+	}
+	if m.entry.Profile != "" {
+		opts = append(opts, awsconfig.WithSharedConfigProfile(m.entry.Profile))
 	}
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
@@ -87,17 +98,9 @@ func (m *bedrockLLM) GenerateContent(
 			Messages: msgs,
 		}
 
-		if req.Config != nil && req.Config.SystemInstruction != nil {
-			var sysText string
-			for _, p := range req.Config.SystemInstruction.Parts {
-				if p != nil && p.Text != "" {
-					sysText += p.Text
-				}
-			}
-			if sysText != "" {
-				input.System = []brtypes.SystemContentBlock{
-					&brtypes.SystemContentBlockMemberText{Value: sysText},
-				}
+		if sysText := systemText(req.Config); sysText != "" {
+			input.System = []brtypes.SystemContentBlock{
+				&brtypes.SystemContentBlockMemberText{Value: sysText},
 			}
 		}
 
@@ -210,7 +213,7 @@ func bedrockToolsFromConfig(cfg *genai.GenerateContentConfig) []brtypes.Tool {
 	var out []brtypes.Tool
 	for _, t := range cfg.Tools {
 		for _, fd := range t.FunctionDeclarations {
-			schema := bedrockInputSchema(fd)
+			schema := jsonSchemaFor(fd)
 			name := fd.Name
 			desc := fd.Description
 			if desc == "" {
@@ -227,63 +230,6 @@ func bedrockToolsFromConfig(cfg *genai.GenerateContentConfig) []brtypes.Tool {
 		}
 	}
 	return out
-}
-
-// bedrockInputSchema extracts the tool's parameter schema and ensures
-// it is a top-level object type (Bedrock rejects anything else).
-func bedrockInputSchema(fd *genai.FunctionDeclaration) map[string]any {
-	var raw map[string]any
-	if fd.ParametersJsonSchema != nil {
-		raw = toMapStringAny(fd.ParametersJsonSchema)
-	} else if fd.Parameters != nil {
-		raw = toMapStringAny(fd.Parameters)
-	}
-	if raw == nil {
-		return nil
-	}
-	normalizeSchemaTypes(raw)
-	if raw["type"] == nil || raw["type"] == "" {
-		raw["type"] = "object"
-	}
-	return raw
-}
-
-// normalizeSchemaTypes lowercases the "type" field throughout a schema
-// tree. genai.Schema uses uppercase enums ("OBJECT", "STRING", etc.)
-// but JSON Schema (and Bedrock) requires lowercase.
-func normalizeSchemaTypes(schema map[string]any) {
-	if t, ok := schema["type"].(string); ok {
-		schema["type"] = strings.ToLower(t)
-	}
-	// Recurse into properties
-	if props, ok := schema["properties"].(map[string]any); ok {
-		for _, v := range props {
-			if sub, ok := v.(map[string]any); ok {
-				normalizeSchemaTypes(sub)
-			}
-		}
-	}
-	// Recurse into items (array schemas)
-	if items, ok := schema["items"].(map[string]any); ok {
-		normalizeSchemaTypes(items)
-	}
-}
-
-func toMapStringAny(v any) map[string]any {
-	switch m := v.(type) {
-	case map[string]any:
-		return m
-	default:
-		data, err := json.Marshal(v)
-		if err != nil {
-			return nil
-		}
-		var out map[string]any
-		if err := json.Unmarshal(data, &out); err != nil {
-			return nil
-		}
-		return out
-	}
 }
 
 func bedrockOutputToLLMResponse(out *bedrockruntime.ConverseOutput) *adkmodel.LLMResponse {

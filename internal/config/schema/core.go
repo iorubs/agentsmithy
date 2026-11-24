@@ -38,6 +38,14 @@ type validator interface {
 
 var validatorType = reflect.TypeFor[validator]()
 
+// refKeyer is implemented by named string types whose ref= constraint applies
+// to a derived key rather than the whole value.
+type refKeyer interface {
+	RefKey() string
+}
+
+var refKeyerType = reflect.TypeFor[refKeyer]()
+
 // DocProvider supplies documentation extracted from Go source comments.
 // Populated by the AST walker in v1/docs.go and passed to Describe.
 type DocProvider struct {

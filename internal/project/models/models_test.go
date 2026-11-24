@@ -8,27 +8,32 @@ import (
 	"github.com/iorubs/agentsmithy/internal/config"
 )
 
-// TestNew_ProvidersResolve confirms every v0.1 provider key dispatches
-// through New: openai + borrowed return a working LLM, bedrock and
-// google return a working LLM once credentials are present (google
-// here errors on the missing API key rather than not-implemented),
-// the remaining two return their not-implemented sentinel.
+// TestNew_ProvidersResolve confirms every provider key dispatches
+// through New and returns a working LLM once its credentials are
+// present. google keeps a credential-less row to prove the missing-key
+// path reports the env var it looked at.
 func TestNew_ProvidersResolve(t *testing.T) {
 	maxTokens := 256
 	tests := []struct {
 		provider config.Provider
 		entry    config.ModelEntry
+		env      map[string]string
 		wantErr  string
 	}{
-		{config.ProviderOpenAI, config.ModelEntry{Model: "gpt-4o-mini"}, ""},
-		{config.ProviderBorrowed, config.ModelEntry{MaxTokens: &maxTokens}, ""},
-		{config.ProviderBedrock, config.ModelEntry{Model: "anthropic.claude-3-5-sonnet-20241022-v2:0"}, ""},
-		{config.ProviderAnthropic, config.ModelEntry{Model: "x"}, "not implemented yet"},
-		{config.ProviderGoogle, config.ModelEntry{Model: "x", APIKeyEnv: "TEST_GOOGLE_UNSET_KEY"}, "API key not found"},
-		{config.ProviderVertex, config.ModelEntry{Model: "x"}, "not implemented yet"},
+		{config.ProviderOpenAI, config.ModelEntry{Model: "gpt-4o-mini"}, nil, ""},
+		{config.ProviderBorrowed, config.ModelEntry{MaxTokens: &maxTokens}, nil, ""},
+		{config.ProviderBedrock, config.ModelEntry{Model: "anthropic.claude-3-5-sonnet-20241022-v2:0"}, nil, ""},
+		{config.ProviderAnthropic, config.ModelEntry{Model: "claude-sonnet-4-5", APIKeyEnv: "TEST_ANTHROPIC_KEY"},
+			map[string]string{"TEST_ANTHROPIC_KEY": "sk-test"}, ""},
+		{config.ProviderGoogle, config.ModelEntry{Model: "x", APIKeyEnv: "TEST_GOOGLE_UNSET_KEY"}, nil, "API key not found"},
+		{config.ProviderVertex, config.ModelEntry{Model: "gemini-2.5-flash", APIKeyEnv: "TEST_VERTEX_KEY"},
+			map[string]string{"TEST_VERTEX_KEY": "vk-test"}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.provider), func(t *testing.T) {
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
 			llm, err := New(context.Background(), config.ModelRef{Provider: tt.provider, Name: "default"}, tt.entry)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
@@ -57,6 +62,17 @@ func TestNew_ProvidersResolve(t *testing.T) {
 func TestNew_OpenAIRequiresModel(t *testing.T) {
 	if _, err := New(context.Background(), config.ModelRef{Provider: config.ProviderOpenAI, Name: "x"}, config.ModelEntry{}); err == nil {
 		t.Fatal("openai with empty Model: err = nil; want error")
+	}
+}
+
+// TestNew_AnthropicRequiresAPIKey verifies the anthropic provider
+// names the env var it looked at rather than failing at first call.
+func TestNew_AnthropicRequiresAPIKey(t *testing.T) {
+	_, err := New(context.Background(),
+		config.ModelRef{Provider: config.ProviderAnthropic, Name: "x"},
+		config.ModelEntry{Model: "claude-sonnet-4-5", APIKeyEnv: "TEST_ANTHROPIC_UNSET_KEY"})
+	if err == nil || !strings.Contains(err.Error(), "TEST_ANTHROPIC_UNSET_KEY") {
+		t.Fatalf("err = %v; want missing-key error naming the env var", err)
 	}
 }
 

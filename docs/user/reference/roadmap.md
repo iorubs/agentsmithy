@@ -29,18 +29,13 @@ AgentSmithy.
 
 ---
 
-### Native provider implementations
+### Streaming responses
 
-**Problem:** Several providers ship as registered stubs that return "not implemented yet" when called. The registry, config schema, and pipeline wiring are all in place, but the actual API clients are not:
+**Problem:** Every provider ignores the `stream` flag `GenerateContent` receives and yields a single response once the full completion arrives. The agent surfaces nothing until the model finishes, which is fine for short tool-driven turns and poor for long-form answers. The a2a transport already has a streaming event surface; the model layer is what does not feed it.
 
-- **Anthropic** native Claude API.
-- **Google** native (Gemini direct API via `google.golang.org/genai`).
-- **AWS Bedrock** (Partial) (covers Claude, Llama, Titan, Mistral on AWS via SDK v2 + SigV4).
-- **Vertex AI** (Gemini and Anthropic on Vertex via `genai` in Vertex mode + GCP service-account auth).
+**Value:** First-token latency drops from "wait for the whole answer" to "as soon as the model starts". Interactive clients (the smithy-cli TUI, editor integrations) get incremental output for free, and long generations stop looking like a hang.
 
-**Value:** Users get first-class access to each vendor without routing through OpenAI-compatible shims. Bedrock and Vertex specifically unlock managed deployments where the model lives behind cloud auth (IAM, service accounts) rather than API keys, which is a hard requirement for enterprise stacks. Each one drops into the existing registry without touching `models.go`, `build.go`, or call sites.
-
-**Why parked:** OpenAI-compatible providers (including Ollama, vLLM, LM Studio, Together, Groq) cover every concrete model the project has needed so far. The borrowed-via-MCP path also covers the "use the host's model" case for Copilot-style integrations. Building four full provider clients before there's a forcing use case ties up effort that pays off only when a deployment specifically requires native Anthropic / Bedrock / Vertex auth. Revisit when a concrete deployment requires one of them; the stub-to-real transition is intentionally low-risk because the surrounding wiring already works.
+**Why parked:** Each provider needs its own incremental decoder (SSE for openai and anthropic, the Bedrock event stream for converse-stream, genai's iterator for google and vertex), and partial tool-call assembly differs per wire. The transports and the ADK loop also need to agree on how partial responses interleave with tool calls. Revisit when a deployment is dominated by long-form generation rather than tool-driven turns.
 
 ---
 

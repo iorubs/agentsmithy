@@ -96,6 +96,9 @@ func Process(v any) []error {
 			}
 			if len(validKeys) > 0 {
 				val := fv.String()
+				if fv.Type().Implements(refKeyerType) {
+					val = fv.Interface().(refKeyer).RefKey()
+				}
 				if slices.Contains(validKeys, val) {
 					return
 				}
@@ -111,7 +114,10 @@ func Process(v any) []error {
 		errs = append(errs, typedAsErrors(rv, path)...)
 		if rv.Type().Implements(validatorType) {
 			if err := rv.Interface().(validator).Validate(); err != nil {
-				errs = append(errs, fmt.Errorf("%s: %w", path, err))
+				if path != "" {
+					err = fmt.Errorf("%s: %w", path, err)
+				}
+				errs = append(errs, err)
 			}
 		}
 	})
