@@ -15,7 +15,7 @@ any software project; no language or framework assumptions baked in.
 # Build
 docker build -t agentsmithy:latest .
 
-# Or from source (Go 1.26+)
+# Or from source (Go 1.27+)
 go build -o bin/agentsmithy ./cmd/agentsmithy
 ```
 
